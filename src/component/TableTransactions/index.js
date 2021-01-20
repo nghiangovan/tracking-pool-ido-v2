@@ -1,19 +1,24 @@
 import React from 'react';
 import { Table, Tag } from 'antd';
-import prettyMilliseconds from 'pretty-ms';
-import { formartWeiToGwei } from 'utils/common';
+// import prettyMilliseconds from 'pretty-ms';
+import { formartWeiToEth, formartWeiToGwei } from 'utils/common';
 import etherscan from 'assets/images/etherscan.png';
 
-function TableTransactions({ setGas, setGasPrice, dataSource }) {
+const urlEtherScan = {
+  1: `https://etherscan.io/tx`,
+  3: `https://ropsten.etherscan.io/tx`,
+  4: `https://rinkeby.etherscan.io/tx`
+};
+
+function TableTransactions({ setGasPrice, dataSource }) {
   const columns = [
     {
       title: 'Hash',
       dataIndex: 'hash',
       key: 'hash',
       render: hash => (
-        // <a href={`https://etherscan.io/tx/${hash}`} target='_blank' rel='noopener noreferrer'>
         <a
-          href={`https://rinkeby.etherscan.io/tx/${hash}`}
+          href={`${urlEtherScan[process.env.REACT_APP_CHAIN_ID]}/${hash}`}
           target='_blank'
           rel='noopener noreferrer'
         >
@@ -26,27 +31,31 @@ function TableTransactions({ setGas, setGasPrice, dataSource }) {
       )
     },
     {
-      title: 'Timestamp',
-      dataIndex: 'timestamp',
-      key: 'timestamp',
-      render: timestamp => {
-        return timestamp
-          ? prettyMilliseconds(Math.floor(new Date().getTime()) - timestamp * 1000, {
-              compact: true
-            })
-          : '';
+      title: 'Value',
+      dataIndex: 'value',
+      key: 'value',
+      render: value => {
+        return formartWeiToEth(parseInt(value));
       }
     },
+    // {
+    //   title: 'Timestamp',
+    //   dataIndex: 'timestamp',
+    //   key: 'timestamp',
+    //   render: timestamp => {
+    //     return timestamp
+    //       ? prettyMilliseconds(Math.floor(new Date().getTime()) - timestamp * 1000, {
+    //           compact: true
+    //         })
+    //       : '';
+    //   }
+    // },
     {
       title: 'Gas Limit',
       dataIndex: 'gasLimit',
       key: 'gasLimit',
       render: gasLimit => (
-        <Tag
-          color='processing'
-          onClick={() => setGas(parseInt(gasLimit))}
-          className='cursor-pointer'
-        >
+        <Tag color='processing' className='cursor-pointer'>
           {parseInt(gasLimit)}
         </Tag>
       )
