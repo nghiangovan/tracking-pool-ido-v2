@@ -1,0 +1,441 @@
+.swap-IDO-tool {
+  .header {
+    padding-top: 1.5rem;
+    margin-bottom: 1rem;
+    h1 {
+      margin-top: 0;
+      text-align: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
+        'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+  }
+  .content {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-items: stretch;
+    align-content: stretch;
+    width: 100%;
+    -webkit-box-align: center;
+    flex: 1 1 0%;
+    overflow: hidden auto;
+    z-index: 1;
+    .ant-row {
+      width: 100%;
+      .box-1 {
+        padding: 1rem;
+        .ant-row {
+          margin: 0 0 1rem 0;
+        }
+        h2 {
+          text-align: center;
+          margin: 0;
+          height: 100%;
+          line-height: normal;
+        }
+        .section-follow-my-transaction {
+          border-radius: 20px;
+          color: rgb(86, 90, 105);
+          z-index: -1;
+          transform: translateY(0%);
+          transition: transform 300ms ease-in-out 0s;
+          .list-transactions {
+            display: grid;
+            grid-auto-rows: auto;
+            row-gap: 12px;
+            .ant-table {
+              border-radius: 20px;
+              padding: 1rem;
+            }
+          }
+        }
+      }
+      .box-2 {
+        padding: 1rem 1rem 3rem 1rem;
+        .content-tracking {
+          max-width: 435px;
+          background: rgb(255, 255, 255);
+          box-shadow: rgba(0, 0, 0, 0.01) 0px 0px 1px, rgba(0, 0, 0, 0.04) 0px 4px 8px,
+            rgba(0, 0, 0, 0.04) 0px 16px 24px, rgba(0, 0, 0, 0.01) 0px 24px 32px;
+          border-radius: 30px;
+          padding: 1rem;
+          margin: 0 auto;
+          .tracking-swap {
+            .swap-input {
+              display: block;
+              .swap-input-token {
+                display: flex;
+                flex-flow: column nowrap;
+                position: relative;
+                border-radius: 20px;
+                background-color: rgb(247, 248, 250);
+                z-index: 1;
+              }
+              .display-slippage {
+                box-sizing: border-box;
+                margin: 0px;
+                min-width: 0px;
+                width: 100%;
+                border-radius: 20px;
+                .box-slippage {
+                  display: grid;
+                  grid-auto-rows: auto;
+                  row-gap: 4px;
+                  .slippage-tolerance {
+                    box-sizing: border-box;
+                    margin: 0px;
+                    min-width: 0px;
+                    width: 100%;
+                    display: flex;
+                    padding: 0px;
+                    -webkit-box-align: center;
+                    align-items: center;
+                    -webkit-box-pack: justify;
+                    justify-content: space-between;
+                    .text-slippage {
+                      padding-left: 5px;
+                      box-sizing: border-box;
+                      margin: 0px;
+                      min-width: 0px;
+                      font-weight: 500;
+                      font-size: 14px;
+                      color: rgb(86, 90, 105);
+                    }
+                    .slippage {
+                      box-sizing: border-box;
+                      margin: 0px;
+                      min-width: 0px;
+                      font-weight: 500;
+                      font-size: 14px;
+                      color: rgb(86, 90, 105);
+                      .input-slippage {
+                        border-radius: 8px;
+                        width: 66px;
+                        text-align: right;
+                      }
+                    }
+                  }
+                }
+              }
+
+              .display-fee {
+                box-sizing: border-box;
+                margin: 0px;
+                min-width: 0px;
+                width: 100%;
+                border-radius: 20px;
+                .box-fee {
+                  display: grid;
+                  grid-auto-rows: auto;
+                  row-gap: 4px;
+                  span {
+                    text-align: center;
+                    box-sizing: border-box;
+                    margin: 0px;
+                    min-width: 0px;
+                    font-weight: 500;
+                    font-size: 14px;
+                    color: #565a69;
+                    i {
+                      color: #53596f;
+                      font-size: small;
+                    }
+                    b {
+                      color: black;
+                    }
+                  }
+                }
+              }
+
+              .display-icon-down {
+                box-sizing: border-box;
+                margin: 0px;
+                min-width: 0px;
+                width: 100%;
+                text-align: center;
+                .anticon-arrow-down {
+                  font-size: medium;
+                  cursor: pointer;
+                }
+              }
+              .swap-group-amount-gas {
+                .swap-input-gas-price,
+                .swap-input-gas {
+                  display: flex;
+                  flex-flow: column nowrap;
+                  position: relative;
+                  border-radius: 20px;
+                  background-color: rgb(247, 248, 250);
+                  z-index: 1;
+                }
+              }
+            }
+            .button-start-swap {
+              margin-top: 1.5rem;
+              .button-swap {
+                padding: 15px;
+                width: 100%;
+                font-weight: 500;
+                text-align: center;
+                border-radius: 12px;
+                outline: none;
+                border: 1px solid transparent;
+                text-decoration: none;
+                display: flex;
+                -webkit-box-pack: center;
+                justify-content: center;
+                flex-wrap: nowrap;
+                -webkit-box-align: center;
+                align-items: center;
+                cursor: pointer;
+                position: relative;
+                z-index: 1;
+                background-color: rgb(255, 0, 122);
+                color: white;
+                .text-button {
+                  box-sizing: border-box;
+                  margin: 0px;
+                  min-width: 0px;
+                  font-size: 20px;
+                  font-weight: 500;
+                  user-select: none;
+                }
+              }
+              .button-swap:disabled {
+                background-color: rgb(237, 238, 242);
+                color: rgb(136, 141, 155);
+                cursor: auto;
+                box-shadow: none;
+                border: 1px solid transparent;
+                outline: none;
+                opacity: 1;
+              }
+            }
+          }
+        }
+      }
+      .box-3 {
+        padding: 1rem;
+        .ant-row {
+          margin: 0 0 0.6rem 0;
+        }
+        .status-tracking-pair {
+          text-align: center;
+        }
+        .ant-tag {
+          text-align: start;
+          font-size: 1rem;
+          border-radius: 8px;
+          margin: 3px;
+        }
+        .show-liquidity {
+          text-align: start;
+          margin-left: 1.5rem;
+        }
+        .button-start-tracking {
+          .button-start {
+            padding: 5px;
+            width: 100%;
+            font-weight: 500;
+            text-align: center;
+            border-radius: 12px;
+            outline: none;
+            border: 1px solid transparent;
+            text-decoration: none;
+            display: flex;
+            -webkit-box-pack: center;
+            justify-content: center;
+            flex-wrap: nowrap;
+            -webkit-box-align: center;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            z-index: 1;
+            background-color: #096dd9;
+            color: white;
+            .text-button {
+              box-sizing: border-box;
+              margin: 0px;
+              min-width: 0px;
+              font-size: 20px;
+              font-weight: 500;
+              user-select: none;
+            }
+          }
+          .button-start:disabled {
+            background-color: rgb(237, 238, 242);
+            color: rgb(136, 141, 155);
+            cursor: auto;
+            box-shadow: none;
+            border: 1px solid transparent;
+            outline: none;
+            opacity: 1;
+          }
+          .ant-checkbox-wrapper {
+            margin-top: 0.3rem;
+            width: 100%;
+            text-align: end;
+          }
+        }
+        h2 {
+          text-align: center;
+          margin: 0;
+        }
+        .section-follow-transaction {
+          border-radius: 20px;
+          color: rgb(86, 90, 105);
+          z-index: -1;
+          transform: translateY(0%);
+          transition: transform 300ms ease-in-out 0s;
+          .list-transactions {
+            display: grid;
+            grid-auto-rows: auto;
+            row-gap: 12px;
+
+            .ant-table {
+              border-radius: 20px;
+              padding: 1rem;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+.boder-input {
+  border-radius: 20px;
+  border: 1px solid #d4dcea;
+  background-color: rgb(255, 255, 255);
+  padding: 0.5rem;
+  .label-input {
+    display: flex;
+    flex-flow: row nowrap;
+    -webkit-box-align: center;
+    align-items: center;
+    color: rgb(0, 0, 0);
+    font-size: 0.75rem;
+    line-height: 1rem;
+    padding: 0px 0.5rem 0px;
+    border-bottom: 1px solid rgb(247, 248, 250);
+    padding-bottom: 0.3rem;
+    .content-label {
+      box-sizing: border-box;
+      margin: 0px;
+      min-width: 0px;
+      width: 100%;
+      display: flex;
+      padding: 0px;
+      -webkit-box-align: center;
+      align-items: center;
+      -webkit-box-pack: justify;
+      justify-content: space-between;
+      color: rgb(0, 0, 0);
+      font-size: 0.75rem;
+      line-height: 1rem;
+      .text-label {
+        box-sizing: border-box;
+        margin: 0px;
+        min-width: 0px;
+        font-weight: 500;
+        font-size: 14px;
+        color: rgb(86, 90, 105);
+      }
+      .display-balance {
+        display: inline;
+        cursor: pointer;
+        box-sizing: border-box;
+        margin: 0px;
+        min-width: 0px;
+        font-weight: 500;
+        font-size: 14px;
+        color: rgb(86, 90, 105);
+      }
+    }
+  }
+  .token-input {
+    display: flex;
+    flex-flow: row nowrap;
+    -webkit-box-align: center;
+    align-items: center;
+    padding: 0.5rem;
+    .input-token {
+      color: rgb(0, 0, 0);
+      position: relative;
+      font-weight: 500;
+      outline: none;
+      border: none;
+      flex: 1 1 auto;
+      background-color: rgb(255, 255, 255);
+      font-size: 1rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding: 0px;
+      appearance: textfield;
+    }
+    .button-max {
+      border: 1px solid rgb(255, 0, 122);
+      background-color: rgb(253, 234, 241);
+      border: 1px solid rgb(253, 234, 241);
+      font-size: 0.7rem;
+      font-weight: 500;
+      cursor: pointer;
+      color: rgb(255, 0, 122);
+      user-select: none;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .swap-IDO-tool {
+    header {
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+    }
+    .content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      .box-2 {
+        width: 100%;
+      }
+      .box-3 {
+        width: 100%;
+      }
+
+      .content-tracking {
+        width: 100%;
+        .tracking-swap {
+          .swap-input {
+            .swap-group-amount-gas {
+              display: grid;
+              grid-auto-rows: auto;
+              grid-row-gap: 12px;
+              row-gap: 12px;
+              .swap-input-amount,
+              .swap-input-gas {
+                width: 100%;
+              }
+              .swap-input-amount {
+                margin-right: 0;
+              }
+            }
+          }
+        }
+      }
+      .section-follow-transaction {
+        width: 100%;
+      }
+    }
+  }
+
+  .boder-input {
+    .token-input {
+      .input-token {
+        font-size: 1rem;
+      }
+    }
+  }
+}
