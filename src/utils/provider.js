@@ -10,7 +10,7 @@ export const provider = new ethers.providers.InfuraProvider(
   chain[process.env.REACT_APP_CHAIN_ID],
   process.env.REACT_APP_INFURA_ID
 );
-// let provider = new ethers.providers.JsonRpcProvider(
+// export const provider = new ethers.providers.JsonRpcProvider(
 //   `https://${chain[process.env.REACT_APP_CHAIN_ID]}.infura.io/v3/62349edb370e4523b328b8823d211551`,
 //   chain[process.env.REACT_APP_CHAIN_ID]
 // );
