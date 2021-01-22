@@ -24,7 +24,6 @@ function RightSwap({
   const [minOut, setMinOut] = useState(0);
 
   function calc() {
-    console.log('amount', amount);
     if (liquid0 === 0 || liquid1 === 0 || !amount) {
       return;
     }
@@ -113,9 +112,21 @@ function RightSwap({
               <i>( Guess amount min when pair was not listed yet )</i>
             </p>
             <label>Liquidity 1</label>
-            <Input type='text' value={liquid0} onChange={e => changeLiquid1(e)}></Input>
+            <Input
+              type='text'
+              value={liquid0}
+              onChange={e => changeLiquid1(e)}
+              onBlur={() => calc()}
+              onPressEnter={() => calc()}
+            ></Input>
             <label>Liquidity 2</label>
-            <Input type='text' value={liquid1} onChange={e => changeLiquid2(e)}></Input>
+            <Input
+              type='text'
+              value={liquid1}
+              onChange={e => changeLiquid2(e)}
+              onBlur={() => calc()}
+              onPressEnter={() => calc()}
+            ></Input>
             <h2 className='result-amount-min'>
               Amount Min:
               <b

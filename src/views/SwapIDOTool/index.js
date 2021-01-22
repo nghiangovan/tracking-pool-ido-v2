@@ -127,23 +127,33 @@ function SwapTool() {
       setInstancePair(pairContract);
       let reverves = await pairContract.getReserves();
       let token0 =
-        (await pairContract.token0()) === addressToken0
+        (await pairContract.token0()).toString().toLowerCase() ===
+        addressToken0.toString().toLowerCase()
           ? await pairContract.token0()
           : await pairContract.token1();
       const contractToken0 = new ethers.Contract(token0, Erc20, provider);
       setDecimals0(await contractToken0.decimals());
+
       let token1 =
-        (await pairContract.token1()) === addressToken1
+        (await pairContract.token1()).toString().toLowerCase() ===
+        addressToken1.toString().toLowerCase()
           ? await pairContract.token1()
           : await pairContract.token0();
       const contractToken1 = new ethers.Contract(token1, Erc20, provider);
       setDecimals1(await contractToken1.decimals());
-
-      let indexToken0 = (await pairContract.token0()) === addressToken0 ? 0 : 1;
+      let indexToken0 =
+        (await pairContract.token0()).toString().toLowerCase() ===
+        addressToken0.toString().toLowerCase()
+          ? 0
+          : 1;
       setLiquidity0(
         parseFloat(ethers.utils.formatUnits(reverves[indexToken0], decimals0)).toFixed(3)
       );
-      let indexToken1 = (await pairContract.token1()) === addressToken1 ? 1 : 0;
+      let indexToken1 =
+        (await pairContract.token1()).toString().toLowerCase() ===
+        addressToken1.toString().toLowerCase()
+          ? 1
+          : 0;
       setLiquidity1(
         parseFloat(ethers.utils.formatUnits(reverves[indexToken1], decimals1)).toFixed(3)
       );
@@ -152,11 +162,19 @@ function SwapTool() {
 
   async function updateLiquidity() {
     let reverves = await instancePair.getReserves();
-    let indexToken0 = (await instancePair.token0()) === addressToken0 ? 0 : 1;
+    let indexToken0 =
+      (await instancePair.token0()).toString().toLowerCase() ===
+      addressToken0.toString().toLowerCase()
+        ? 0
+        : 1;
     setLiquidity0(
       parseFloat(ethers.utils.formatUnits(reverves[indexToken0], decimals0)).toFixed(3)
     );
-    let indexToken1 = (await instancePair.token1()) === addressToken1 ? 1 : 0;
+    let indexToken1 =
+      (await instancePair.token1()).toString().toLowerCase() ===
+      addressToken1.toString().toLowerCase()
+        ? 1
+        : 0;
     setLiquidity1(
       parseFloat(ethers.utils.formatUnits(reverves[indexToken1], decimals1)).toFixed(3)
     );
@@ -294,7 +312,7 @@ function SwapTool() {
       let contract = new ethers.Contract(value, Erc20, provider);
       if (contract.address !== addressNull) {
         setSymbol0(await contract.symbol());
-        setDecimals0(await contract.symbol());
+        setDecimals0(await contract.decimals());
         if (ethers.utils.isAddress(addressToken0)) {
           const pairAddress = await factoryUNI.getPair(value, addressToken1);
           if (pairAddress !== addressNull) {
@@ -313,7 +331,7 @@ function SwapTool() {
       let contract = new ethers.Contract(value, Erc20, provider);
       if (contract.address !== addressNull) {
         setSymbol1(await contract.symbol());
-        setDecimals1(await contract.symbol());
+        setDecimals1(await contract.decimals());
         if (ethers.utils.isAddress(addressToken1)) {
           const pairAddress = await factoryUNI.getPair(addressToken0, value);
           if (pairAddress !== addressNull) {
