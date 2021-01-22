@@ -467,6 +467,7 @@ function SwapTool() {
                 setbBlanceETH={setbBlanceETH}
                 myTransactions={myTransactions}
                 provider={provider}
+                amount={amount}
               />
             </Col>
             <Col xs={{ order: 1, span: 24 }} xl={{ order: 2, span: 6 }}>
@@ -709,7 +710,7 @@ function SwapTool() {
                 pair={pair}
                 liquidity1={liquidity1}
                 liquidity2={liquidity2}
-                amountOutMin={amountOutMin}
+                amount={amount}
               />
             </Col>
           </Row>
