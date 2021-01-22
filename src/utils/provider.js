@@ -6,7 +6,7 @@ export const chain = {
   4: 'rinkeby'
 };
 
-export const provider = new ethers.providers.InfuraProvider(
+export const provider = new ethers.providers.InfuraWebSocketProvider(
   chain[process.env.REACT_APP_CHAIN_ID],
   process.env.REACT_APP_INFURA_ID
 );
