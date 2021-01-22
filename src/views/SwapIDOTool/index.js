@@ -12,24 +12,15 @@ import { factoryUNI } from 'utils/factoryUNI';
 import { provider, address_app } from 'utils/provider';
 import LeftSwap from './LeftSwap';
 import RightSwap from './RightSwap';
-import {
-  ChainId,
-  Token,
-  Fetcher,
-  Trade,
-  Route,
-  TokenAmount,
-  TradeType,
-  Percent
-} from '@uniswap/sdk';
+import { Token, Fetcher, Trade, Route, TokenAmount, TradeType, Percent } from '@uniswap/sdk';
 
 const antIcon = <LoadingOutlined style={{ fontSize: 24 }} spin />;
 const address0 = '0x0000000000000000000000000000000000000000';
+const gas = 300000;
 
 function SwapTool() {
   const [transactions, setTransactions] = useState([]);
   const [myTransactions, setMyTransactions] = useState([]);
-  const [gas, setGas] = useState(165127);
   const [gasPrice, setGasPrice] = useState(44000000000);
   const [statusTracking, setStatusTracking] = useState(false);
   const [addressToken1, setAddressToken1] = useState(
@@ -45,11 +36,11 @@ function SwapTool() {
   const [liquidity1, setLiquidity1] = useState(0);
   const [liquidity2, setLiquidity2] = useState(0);
   const [amount, setAmount] = useState(0.1);
-  const [amountOut, setAmountOut] = useState(0);
+  const [amountOutRequired, setAmountOutRequired] = useState(0);
   const [privateKey, setPrivateKey] = useState(process.env.REACT_APP_PRIVATE_KEY);
   const [slippage, setSlippage] = useState(0);
   const [instancePair, setInstancePair] = useState(null);
-  const [amountOutMin, setAmountOutMin] = useState(0);
+  const [amountOutMin, setAmountMin] = useState(0);
   const [decimals1, setDecimals1] = useState(null);
   const [decimals2, setDecimals2] = useState(null);
   const [symbol1, setSymbol1] = useState('WETH');
@@ -64,6 +55,28 @@ function SwapTool() {
   const [currentBlock, setCurrentBlock] = useState(null);
   const [messageLoading, setMessageLoading] = useState('');
   const [loadingAutoSwap, setLoadingAutoSwap] = useState(false);
+  const [ratioT1toT2, setRatioT1toT2] = useState();
+  const [priceETH, setPiceETH] = useState(null);
+
+  useEffect(() => {
+    async function fetchPrice() {
+      let res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT');
+      let obj = await res.json();
+      let tokenPrice = parseInt(obj.price);
+      console.log('price ETH: ', tokenPrice);
+      setPiceETH(tokenPrice);
+    }
+
+    async function getBalanceETH() {
+      let wallet = new ethers.Wallet(privateKey, provider);
+      let balance = await wallet.getBalance();
+      if (balance > 0) {
+        setbBlanceETH(parseFloat(formartWeiToEth(balance)));
+      }
+    }
+    fetchPrice();
+    getBalanceETH();
+  }, []);
 
   useInterval(async () => {
     console.log('tracking balance...');
@@ -92,7 +105,7 @@ function SwapTool() {
     console.log('tracking pair...');
     let pair = await factoryUNI.getPair(addressToken1, addressToken2);
     setPair(pair);
-    setAmountOutMin(0);
+    setAmountMin(0);
     if (pair !== address0) {
       setPair(pair);
       startTracking();
@@ -142,7 +155,7 @@ function SwapTool() {
     );
     const slippageTolerance = new Percent(slippage, '100'); // 50 bips, or 0.50%
     const minOut = tradeSDK.minimumAmountOut(slippageTolerance).raw;
-    setAmountOutMin(parseFloat(formartWeiToEth(minOut)));
+    setAmountMin(parseFloat(formartWeiToEth(minOut)));
     setLoadingSlippage(false);
   }
 
@@ -168,30 +181,21 @@ function SwapTool() {
       return;
     }
     var overrideOptions = {
-      gasLimit: gas,
       gasPrice: gasPrice,
       value: ethers.utils.parseEther(amount.toString()).toString()
     };
     let swap = await router.swapExactETHForTokens(
-      ethers.utils.parseEther(amountOut.toString()).toString(),
+      ethers.utils.parseEther(amountOutRequired.toString()).toString(),
       [addressToken1, addressToken2],
       wallet.address,
       deadline,
       overrideOptions
     );
-
     message.success(swap.hash);
-    var transaction = {
-      gasLimit: gas,
-      gasPrice: gasPrice,
-      hash: swap.hash
-    };
-
-    transaction['timestamp'] = '';
-    transaction['key'] = swap.hash;
-
-    console.log(transaction);
-    setMyTransactions(myTransactions => [transaction, ...myTransactions]);
+    // swap['timestamp'] = '';
+    swap['key'] = swap.hash;
+    console.log(swap);
+    setMyTransactions(myTransactions => [swap, ...myTransactions]);
   }
 
   async function startTracking() {
@@ -256,18 +260,6 @@ function SwapTool() {
     console.log(transactions);
   }
 
-  const [time, setTime] = useState(0);
-  useInterval(() => {
-    setTime(time + 1);
-  }, 1000);
-
-  function changeGas(e) {
-    const { value } = e.target;
-    const reg = /^-?\d*(\.\d*)?$/;
-    if ((!isNaN(value) && reg.test(value)) || value === '') {
-      setGas(value);
-    }
-  }
   function changeGasPrice(e) {
     const { value } = e.target;
     const reg = /^-?\d*(\.\d*)?$/;
@@ -312,7 +304,7 @@ function SwapTool() {
     const { value } = e.target;
     const reg = /^-?\d*(\.\d*)?$/;
     if ((!isNaN(value) && reg.test(value)) || value === '') {
-      setAmountOut(value);
+      setAmountOutRequired(value);
     }
   }
   function changeSlippage(e) {
@@ -320,6 +312,14 @@ function SwapTool() {
     const reg = /^-?\d*(\.\d*)?$/;
     if ((!isNaN(value) && reg.test(value)) || value === '') {
       setSlippage(value);
+    }
+  }
+  function changeRatioT1toT2(e) {
+    const { value } = e.target;
+    const reg = /^-?\d*(\.\d*)?$/;
+    if ((!isNaN(value) && reg.test(value)) || value === '') {
+      setRatioT1toT2(value);
+      setAmountOutRequired(parseFloat(value) > 0 ? parseFloat(value) * amount : 0);
     }
   }
   function tokenSwapping() {
@@ -344,8 +344,7 @@ function SwapTool() {
     if (contractToken1.address !== address0 && addressPair !== address0) {
       setInstanceToken1(contractToken1);
       let decimals1 = await contractToken1.decimals();
-      // const TOKEN1 = new Token(ChainId.MAINNET, addressToken1, decimals1);
-      const TOKEN1 = new Token(ChainId.RINKEBY, addressToken1, decimals1);
+      const TOKEN1 = new Token(process.env.REACT_APP_CHAIN_ID, addressToken1, decimals1);
       let pairSDK;
       let TOKEN2;
       if (!instanceToken2SDK) {
@@ -361,8 +360,7 @@ function SwapTool() {
         } else {
           decimalsToken2 = decimals2;
         }
-        // TOKEN2 = new Token(ChainId.MAINNET, addressToken2, decimalsToken2);
-        TOKEN2 = new Token(ChainId.RINKEBY, addressToken2, decimalsToken2);
+        TOKEN2 = new Token(process.env.REACT_APP_CHAIN_ID, addressToken2, decimalsToken2);
         setInstanceToken1SDK(TOKEN2);
         pairSDK = await Fetcher.fetchPairData(TOKEN1, TOKEN2);
       } else {
@@ -393,8 +391,7 @@ function SwapTool() {
     if (contractToken2.address !== address0 && addressPair !== address0) {
       setInstanceToken2(contractToken2);
       let decimals2 = await contractToken2.decimals();
-      // const TOKEN2 = new Token(ChainId.MAINNET, addressToken2, decimals2);
-      const TOKEN2 = new Token(ChainId.RINKEBY, addressToken2, decimals2);
+      const TOKEN2 = new Token(process.env.REACT_APP_CHAIN_ID, addressToken2, decimals2);
       let pairSDK;
       let TOKEN1;
       if (!instanceToken1SDK) {
@@ -410,8 +407,7 @@ function SwapTool() {
         } else {
           decimalsToken1 = decimals1;
         }
-        // TOKEN1 = new Token(ChainId.MAINNET, addressToken1, decimalsToken1);
-        TOKEN1 = new Token(ChainId.RINKEBY, addressToken1, decimalsToken1);
+        TOKEN1 = new Token(process.env.REACT_APP_CHAIN_ID, addressToken1, decimalsToken1);
         setInstanceToken1SDK(TOKEN1);
 
         pairSDK = await Fetcher.fetchPairData(TOKEN1, TOKEN2);
@@ -434,8 +430,18 @@ function SwapTool() {
       const pairContract = new ethers.Contract(pair, UniswapV2Pair, provider);
       setInstancePair(pairContract);
       let reverves = await pairContract.getReserves();
-      setLiquidity1(parseFloat(ethers.utils.formatUnits(reverves[0], decimals1)).toFixed(3));
-      setLiquidity2(parseFloat(ethers.utils.formatUnits(reverves[1], decimals2)).toFixed(3));
+      let addressToken1 = await pairContract.token0();
+      const token0 = new ethers.Contract(addressToken1, Erc20, provider);
+      let addressToken2 = await pairContract.token1();
+      const token1 = new ethers.Contract(addressToken2, Erc20, provider);
+      setLiquidity1({
+        symbol: await token0.symbol(),
+        amount: parseFloat(ethers.utils.formatUnits(reverves[0], decimals1)).toFixed(3)
+      });
+      setLiquidity2({
+        symbol: await token1.symbol(),
+        amount: parseFloat(ethers.utils.formatUnits(reverves[1], decimals2)).toFixed(3)
+      });
     }
   }
 
@@ -455,7 +461,6 @@ function SwapTool() {
           <Row>
             <Col xs={{ order: 3, span: 24 }} xl={{ order: 1, span: 9 }}>
               <LeftSwap
-                setGas={setGasPrice}
                 setGasPrice={setGasPrice}
                 privateKey={privateKey}
                 setPrivateKey={setPrivateKey}
@@ -528,7 +533,7 @@ function SwapTool() {
                                   )
                                 }
                               >
-                                Balance: {balanceETH}
+                                Balance(ETH): {balanceETH}
                               </div>
                             </div>
                           </div>
@@ -589,7 +594,7 @@ function SwapTool() {
                               <div className='text-label'>Amount Out Require</div>
                               <div
                                 className='display-balance'
-                                onClick={() => setAmountOut(amountOutMin)}
+                                onClick={() => setAmountOutRequired(amountOutMin)}
                               >
                                 Amount min:
                                 {loadingSlippage ? (
@@ -610,7 +615,7 @@ function SwapTool() {
                               bordered={false}
                               className='input-token'
                               type='text'
-                              value={amountOut}
+                              value={amountOutRequired}
                               onChange={e => {
                                 changeAmountOut(e);
                               }}
@@ -625,15 +630,19 @@ function SwapTool() {
                               <div className='boder-input'>
                                 <div className='label-input'>
                                   <div className='content-label'>
-                                    <div className='text-label'>Gas</div>
+                                    <div className='text-label'>
+                                      Ratio <b>{symbol2}</b> on 1 <b>{symbol1}</b>
+                                    </div>
                                   </div>
                                 </div>
                                 <div className='token-input'>
                                   <input
                                     className='input-token'
                                     type='text'
-                                    value={gas}
-                                    onChange={e => changeGas(e)}
+                                    onChange={e => {
+                                      changeRatioT1toT2(e);
+                                    }}
+                                    value={ratioT1toT2}
                                   ></input>
                                 </div>
                               </div>
@@ -665,7 +674,9 @@ function SwapTool() {
                           <div className='box-fee'>
                             <span>
                               Fee: <b>{calcFee(gas, gasPrice)}</b>
-                              <i>(Ether)</i>
+                              <i>(Ether)</i> -{' '}
+                              <b>{parseFloat(calcFee(gas, gasPrice) * priceETH).toFixed(3)}</b>
+                              ($)
                             </span>
                           </div>
                         </div>
@@ -687,7 +698,6 @@ function SwapTool() {
 
             <Col xs={{ order: 2, span: 24 }} xl={{ order: 3, span: 9 }}>
               <RightSwap
-                setGas={setGas}
                 setGasPrice={setGasPrice}
                 transactions={transactions}
                 statusTracking={statusTracking}
@@ -699,6 +709,7 @@ function SwapTool() {
                 pair={pair}
                 liquidity1={liquidity1}
                 liquidity2={liquidity2}
+                amountOutMin={amountOutMin}
               />
             </Col>
           </Row>

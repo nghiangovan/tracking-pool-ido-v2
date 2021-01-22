@@ -5,7 +5,6 @@ import { formartWeiToEth } from 'utils/common';
 import TableTransactions from 'component/TableTransactions';
 
 function LeftSwap({
-  setGas,
   setGasPrice,
   privateKey,
   setPrivateKey,
@@ -46,11 +45,7 @@ function LeftSwap({
       </Row>
       <div className='section-follow-my-transaction'>
         <div className='list-transactions'>
-          <TableTransactions
-            setGas={setGas}
-            setGasPrice={setGasPrice}
-            dataSource={myTransactions}
-          />
+          <TableTransactions setGasPrice={setGasPrice} dataSource={myTransactions} />
         </div>
       </div>
     </div>

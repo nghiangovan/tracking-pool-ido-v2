@@ -2,12 +2,9 @@ import React from 'react';
 import { SyncOutlined } from '@ant-design/icons';
 import { Tag, Row, Col, Checkbox } from 'antd';
 import { formatNumber } from 'utils/common';
-import TableTransactions from 'component/TableTransactions';
+// import TableTransactions from 'component/TableTransactions';
 
 function LeftSwap({
-  setGas,
-  setGasPrice,
-  transactions,
   statusTracking,
   statusAutoSwap,
   setStatusAutoSwap,
@@ -16,7 +13,8 @@ function LeftSwap({
   addressToken2,
   pair,
   liquidity1,
-  liquidity2
+  liquidity2,
+  amountOutMin
 }) {
   return (
     <div className='box-3'>
@@ -45,8 +43,8 @@ function LeftSwap({
           {statusTracking &&
           pair &&
           pair !== '0x0000000000000000000000000000000000000000' &&
-          parseFloat(liquidity1) === 0.0 &&
-          parseFloat(liquidity2) === 0.0 ? (
+          parseFloat(liquidity1.amount) === 0.0 &&
+          parseFloat(liquidity2.amount) === 0.0 ? (
             <Tag icon={<SyncOutlined spin />} color='processing'>
               Liquidity is not found...
             </Tag>
@@ -54,14 +52,18 @@ function LeftSwap({
           {statusTracking &&
           pair &&
           pair !== '0x0000000000000000000000000000000000000000' &&
-          liquidity1 > 0 &&
-          liquidity2 > 0 ? (
+          liquidity1.amount > 0 &&
+          liquidity2.amount > 0 ? (
             <div className='show-liquidity'>
               <Tag color='orange'>
-                <div>Amount 1: {formatNumber(liquidity1)} </div>
+                <div>
+                  {liquidity1.symbol}: {formatNumber(liquidity1.amount)}
+                </div>
               </Tag>
               <Tag color='success'>
-                <div>Amount 2: {formatNumber(liquidity2)} </div>
+                <div>
+                  {liquidity2.symbol}: {formatNumber(liquidity2.amount)}
+                </div>
               </Tag>
             </div>
           ) : null}
@@ -71,7 +73,8 @@ function LeftSwap({
 
       <div className='section-follow-transaction'>
         <div className='list-transactions'>
-          <TableTransactions setGas={setGas} setGasPrice={setGasPrice} dataSource={transactions} />
+          <h2>Amount Min: {amountOutMin}</h2>
+          {/* <TableTransactions setGas={setGas} setGasPrice={setGasPrice} dataSource={transactions} /> */}
         </div>
       </div>
     </div>

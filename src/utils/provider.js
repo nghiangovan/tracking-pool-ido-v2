@@ -22,6 +22,12 @@ export const address_app = {
     WETH: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
     DAI: '0x6b175474e89094c44da98b954eedeac495271d0f'
   },
+  3: {
+    routerAddress: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
+    factoryAddress: '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
+    WETH: '0xc778417E063141139Fce010982780140Aa0cD5Ab',
+    DAI: '0xaD6D458402F60fD3Bd25163575031ACDce07538D'
+  },
   4: {
     routerAddress: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
     factoryAddress: '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',

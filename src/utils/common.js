@@ -25,6 +25,6 @@ export function formartWeiToEth(amount) {
 }
 export function calcFee(gasLimit, gasPrice) {
   return parseFloat(gasLimit) > 0 && parseFloat(gasPrice)
-    ? formartWeiToEth(gasLimit) * formartWeiToEth(gasPrice) * 1e17
+    ? formartWeiToEth(gasLimit) * formartWeiToEth(gasPrice) * 1e18
     : 0;
 }
