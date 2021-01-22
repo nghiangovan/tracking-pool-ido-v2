@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { SyncOutlined } from '@ant-design/icons';
-import { Tag, Row, Col, Checkbox } from 'antd';
-import { formatNumber } from 'utils/common';
+import { Tag, Row, Col, Checkbox, Input } from 'antd';
+import { formatNumber, calcAmountOut } from 'utils/common';
 // import TableTransactions from 'component/TableTransactions';
 
-function LeftSwap({
+function RightSwap({
   statusTracking,
   statusAutoSwap,
   setStatusAutoSwap,
@@ -14,8 +14,37 @@ function LeftSwap({
   pair,
   liquidity1,
   liquidity2,
-  amountOutMin
+  amount
 }) {
+  const [liquid1, setLiquid1] = useState(0);
+  const [liquid2, setLiquid2] = useState(0);
+  const [minOut, setMinOut] = useState(0);
+
+  function calc() {
+    console.log('amount', amount);
+    if (liquid1 === 0 || liquid2 === 0 || !amount) {
+      return;
+    }
+    let out = calcAmountOut(liquid1, liquid2, amount);
+    setMinOut(out);
+  }
+
+  function changeLiquid1(e) {
+    const { value } = e.target;
+    const reg = /^-?\d*(\.\d*)?$/;
+    if ((!isNaN(value) && reg.test(value)) || value === '') {
+      setLiquid1(value);
+    }
+  }
+
+  function changeLiquid2(e) {
+    const { value } = e.target;
+    const reg = /^-?\d*(\.\d*)?$/;
+    if ((!isNaN(value) && reg.test(value)) || value === '') {
+      setLiquid2(value);
+    }
+  }
+
   return (
     <div className='box-3'>
       <Row justify='space-around' align='middle'>
@@ -73,7 +102,23 @@ function LeftSwap({
 
       <div className='section-follow-transaction'>
         <div className='list-transactions'>
-          <h2>Amount Min: {amountOutMin}</h2>
+          <p>Liquidity1</p>
+          <Input
+            type='text'
+            value={liquid1}
+            onPressEnter={() => calc()}
+            onBlur={() => calc()}
+            onChange={e => changeLiquid1(e)}
+          ></Input>
+          <p>Liquidity2</p>
+          <Input
+            type='text'
+            value={liquid2}
+            onPressEnter={() => calc()}
+            onBlur={() => calc()}
+            onChange={e => changeLiquid2(e)}
+          ></Input>
+          <h2>Amount Min: {minOut}</h2>
           {/* <TableTransactions setGas={setGas} setGasPrice={setGasPrice} dataSource={transactions} /> */}
         </div>
       </div>
@@ -81,4 +126,4 @@ function LeftSwap({
   );
 }
 
-export default LeftSwap;
+export default RightSwap;
