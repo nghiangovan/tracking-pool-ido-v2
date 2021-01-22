@@ -15,10 +15,14 @@ function LeftSwap({
   async function changePrivateKey(e) {
     const { value } = e.target;
     setPrivateKey(value);
-    let wallet = new ethers.Wallet(value, provider);
-    let balance = await wallet.getBalance();
-    if (balance > 0) {
-      setbBlanceETH(parseFloat(formartWeiToEth(balance)));
+    try {
+      let wallet = new ethers.Wallet(value, provider);
+      let balance = await wallet.getBalance();
+      if (balance > 0) {
+        setbBlanceETH(parseFloat(formartWeiToEth(balance)));
+      }
+    } catch (e) {
+      setbBlanceETH(0);
     }
   }
   return (

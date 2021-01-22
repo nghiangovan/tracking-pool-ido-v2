@@ -41,7 +41,6 @@
           transform: translateY(0%);
           transition: transform 300ms ease-in-out 0s;
           .list-transactions {
-            display: grid;
             grid-auto-rows: auto;
             row-gap: 12px;
             .ant-table {
@@ -230,8 +229,8 @@
           margin: 3px;
         }
         .show-liquidity {
-          text-align: start;
-          margin-left: 1.5rem;
+          text-align: center;
+          margin-left: 1rem;
         }
         .button-start-tracking {
           .button-start {
@@ -296,6 +295,31 @@
             .ant-table {
               border-radius: 20px;
               padding: 1rem;
+            }
+            .calc-amount-min {
+              max-width: 435px;
+              background: white;
+              box-shadow: rgba(0, 0, 0, 0.01) 0px 0px 1px, rgba(0, 0, 0, 0.04) 0px 4px 8px,
+                rgba(0, 0, 0, 0.04) 0px 16px 24px, rgba(0, 0, 0, 0.01) 0px 24px 32px;
+              border-radius: 30px;
+              padding: 1rem;
+              margin: 0 auto;
+              width: 100%;
+              h2 {
+                text-align: center;
+              }
+              p {
+                text-align: center;
+              }
+              input {
+                margin: 0.5rem 0 1rem 0;
+              }
+              .ant-input {
+                border-radius: 10px;
+              }
+              .result-amount-min {
+                margin-top: 1rem;
+              }
             }
           }
         }

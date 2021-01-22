@@ -7,15 +7,14 @@ import UniswapV2Pair from 'contracts/UniswapV2Pair.json';
 import Erc20 from 'contracts/Erc20.json';
 import UniswapV2Router02 from 'contracts/UniswapRouterV2.json';
 import { ethers } from 'ethers';
-import { formartWeiToEth, calcFee } from 'utils/common';
+import { formartWeiToEth, calcFee, calcAmountOut } from 'utils/common';
 import { factoryUNI } from 'utils/factoryUNI';
 import { provider, address_app } from 'utils/provider';
 import LeftSwap from './LeftSwap';
 import RightSwap from './RightSwap';
-import { Token, Fetcher, Trade, Route, TokenAmount, TradeType, Percent } from '@uniswap/sdk';
 
 const antIcon = <LoadingOutlined style={{ fontSize: 24 }} spin />;
-const address0 = '0x0000000000000000000000000000000000000000';
+const addressNull = '0x0000000000000000000000000000000000000000';
 const gas = 300000;
 
 function SwapTool() {
@@ -23,31 +22,26 @@ function SwapTool() {
   const [myTransactions, setMyTransactions] = useState([]);
   const [gasPrice, setGasPrice] = useState(44000000000);
   const [statusTracking, setStatusTracking] = useState(false);
-  const [addressToken1, setAddressToken1] = useState(
+  const [addressToken0, setAddressToken0] = useState(
     address_app[process.env.REACT_APP_CHAIN_ID].WETH
   );
-  const [instanceToken1, setInstanceToken1] = useState(null);
   const [balanceETH, setbBlanceETH] = useState(0);
-  const [addressToken2, setAddressToken2] = useState(
+  const [addressToken1, setAddressToken1] = useState(
     address_app[process.env.REACT_APP_CHAIN_ID].DAI
   );
-  const [instanceToken2, setInstanceToken2] = useState(null);
   const [pair, setPair] = useState(null);
+  const [liquidity0, setLiquidity0] = useState(0);
   const [liquidity1, setLiquidity1] = useState(0);
-  const [liquidity2, setLiquidity2] = useState(0);
   const [amount, setAmount] = useState(0.1);
   const [amountOutRequired, setAmountOutRequired] = useState(0);
   const [privateKey, setPrivateKey] = useState(process.env.REACT_APP_PRIVATE_KEY);
   const [slippage, setSlippage] = useState(0);
   const [instancePair, setInstancePair] = useState(null);
   const [amountOutMin, setAmountMin] = useState(0);
+  const [decimals0, setDecimals0] = useState();
   const [decimals1, setDecimals1] = useState(null);
-  const [decimals2, setDecimals2] = useState(null);
-  const [symbol1, setSymbol1] = useState('WETH');
-  const [symbol2, setSymbol2] = useState('DAI');
-  const [instanceToken1SDK, setInstanceToken1SDK] = useState(null);
-  const [instanceToken2SDK, setInstanceToken2SDK] = useState(null);
-  const [instanceRouteSDK, setInstanceRouteSDK] = useState(null);
+  const [symbol0, setSymbol0] = useState('WETH');
+  const [symbol1, setSymbol1] = useState('DAI');
   const [trackPair, setTrackPair] = useState(null);
   const [trackBal, setTrackBal] = useState(null);
   const [statusAutoSwap, setStatusAutoSwap] = useState(true);
@@ -68,19 +62,25 @@ function SwapTool() {
     }
 
     async function getBalanceETH() {
-      let wallet = new ethers.Wallet(privateKey, provider);
-      let balance = await wallet.getBalance();
-      if (balance > 0) {
-        setbBlanceETH(parseFloat(formartWeiToEth(balance)));
+      try {
+        let wallet = new ethers.Wallet(privateKey, provider);
+        let balance = await wallet.getBalance();
+        if (balance > 0) {
+          setbBlanceETH(parseFloat(formartWeiToEth(balance)).toFixed(5));
+        }
+      } catch (e) {
+        setbBlanceETH(0);
       }
     }
     fetchPrice();
-    getBalanceETH();
+    if (privateKey) {
+      getBalanceETH();
+    }
   }, []);
 
   useInterval(async () => {
     console.log('tracking balance...');
-    if (instancePair && pair !== address0) {
+    if (instancePair && pair !== addressNull) {
       let reverves = await instancePair.getReserves();
       let blockNumber = await provider.getBlockNumber();
       console.log(currentBlock, blockNumber);
@@ -103,10 +103,10 @@ function SwapTool() {
 
   useInterval(async () => {
     console.log('tracking pair...');
-    let pair = await factoryUNI.getPair(addressToken1, addressToken2);
+    let pair = await factoryUNI.getPair(addressToken0, addressToken1);
     setPair(pair);
     setAmountMin(0);
-    if (pair !== address0) {
+    if (pair !== addressNull) {
       setPair(pair);
       startTracking();
       setTrackPair(null);
@@ -118,55 +118,76 @@ function SwapTool() {
     }
   }, trackPair);
 
-  function checkLiquidity() {
-    if (!instanceToken1) {
-      setInstanceAndDecimalToken1();
-    }
+  async function createInstancePair() {
+    console.log('createInstancePair');
+    let pair = await factoryUNI.getPair(addressToken0, addressToken1);
+    if (pair !== addressNull) {
+      setPair(pair);
+      const pairContract = new ethers.Contract(pair, UniswapV2Pair, provider);
+      setInstancePair(pairContract);
+      let reverves = await pairContract.getReserves();
+      let token0 =
+        (await pairContract.token0()) === addressToken0
+          ? await pairContract.token0()
+          : await pairContract.token1();
+      const contractToken0 = new ethers.Contract(token0, Erc20, provider);
+      setDecimals0(await contractToken0.decimals());
+      let token1 =
+        (await pairContract.token1()) === addressToken1
+          ? await pairContract.token1()
+          : await pairContract.token0();
+      const contractToken1 = new ethers.Contract(token1, Erc20, provider);
+      setDecimals1(await contractToken1.decimals());
 
-    if (!instanceToken2) {
-      setInstanceAndDecimalToken2();
+      let indexToken0 = (await pairContract.token0()) === addressToken0 ? 0 : 1;
+      setLiquidity0(
+        parseFloat(ethers.utils.formatUnits(reverves[indexToken0], decimals0)).toFixed(3)
+      );
+      let indexToken1 = (await pairContract.token1()) === addressToken1 ? 1 : 0;
+      setLiquidity1(
+        parseFloat(ethers.utils.formatUnits(reverves[indexToken1], decimals1)).toFixed(3)
+      );
     }
+  }
 
-    if (!instancePair && instancePair === address0) {
-      createInstancePair();
-    }
+  async function updateLiquidity() {
+    let reverves = await instancePair.getReserves();
+    let indexToken0 = (await instancePair.token0()) === addressToken0 ? 0 : 1;
+    setLiquidity0(
+      parseFloat(ethers.utils.formatUnits(reverves[indexToken0], decimals0)).toFixed(3)
+    );
+    let indexToken1 = (await instancePair.token1()) === addressToken1 ? 1 : 0;
+    setLiquidity1(
+      parseFloat(ethers.utils.formatUnits(reverves[indexToken1], decimals1)).toFixed(3)
+    );
   }
 
   async function calcTrade() {
     setLoadingSlippage(true);
     if (
+      !addressToken0 ||
       !addressToken1 ||
-      !addressToken2 ||
       slippage > 50 ||
       amount <= 0 ||
       !statusTracking ||
-      !instanceToken1SDK ||
-      !instanceToken2SDK ||
-      !instanceRouteSDK
+      liquidity0 < 0 ||
+      liquidity1 < 0
     ) {
       setLoadingSlippage(false);
       return;
     }
-
-    const tradeSDK = new Trade(
-      instanceRouteSDK,
-      new TokenAmount(instanceToken1SDK, amount * 1e18),
-      TradeType.EXACT_INPUT
-    );
-    const slippageTolerance = new Percent(slippage, '100'); // 50 bips, or 0.50%
-    const minOut = tradeSDK.minimumAmountOut(slippageTolerance).raw;
-    setAmountMin(parseFloat(formartWeiToEth(minOut)));
+    setAmountMin(calcAmountOut(liquidity0, liquidity1, amount));
     setLoadingSlippage(false);
   }
 
   useEffect(() => {
     calcTrade();
-  }, [transactions, instancePair, instanceRouteSDK, liquidity1, liquidity2]);
+  }, [transactions, instancePair, liquidity0, liquidity1]);
   useEffect(() => {
-    if (instancePair && pair !== address0) {
+    if (statusTracking && instancePair && pair !== addressNull) {
       updateLiquidity();
     }
-  }, [transactions, instancePair, addressToken2, addressToken1]);
+  }, [transactions, instancePair, addressToken1, addressToken0, pair]);
 
   async function swapExactETHForTokens() {
     let wallet = new ethers.Wallet(privateKey, provider);
@@ -176,7 +197,7 @@ function SwapTool() {
       wallet
     );
     let deadline = Math.floor(Date.now() / 1000) + 60 * 20;
-    if (!addressToken1 || !addressToken2) {
+    if (!addressToken0 || !addressToken1) {
       message.error('Please fill up token address');
       return;
     }
@@ -186,7 +207,7 @@ function SwapTool() {
     };
     let swap = await router.swapExactETHForTokens(
       ethers.utils.parseEther(amountOutRequired.toString()).toString(),
-      [addressToken1, addressToken2],
+      [addressToken0, addressToken1],
       wallet.address,
       deadline,
       overrideOptions
@@ -201,9 +222,8 @@ function SwapTool() {
   async function startTracking() {
     console.log('Start Tracking');
     setStatusTracking(true);
-    let pair = await factoryUNI.getPair(addressToken1, addressToken2);
-    createInstancePair();
-    if (pair !== address0) {
+    let pair = await factoryUNI.getPair(addressToken0, addressToken1);
+    if (pair !== addressNull) {
       const pairContract = new ethers.Contract(pair, UniswapV2Pair, provider);
       let reverves = await pairContract.getReserves();
       if (parseFloat(reverves[1]) === 0.0) {
@@ -216,7 +236,7 @@ function SwapTool() {
     }
     setPair(pair);
     console.log('pair', pair);
-    checkLiquidity();
+    createInstancePair();
     message.success('Start Tracking');
     let filter = {
       address: pair,
@@ -267,30 +287,42 @@ function SwapTool() {
       setGasPrice(value);
     }
   }
+  async function changeToken0(e) {
+    const { value } = e.target;
+    setAddressToken0(value);
+    if (ethers.utils.isAddress(value)) {
+      let contract = new ethers.Contract(value, Erc20, provider);
+      if (contract.address !== addressNull) {
+        setSymbol0(await contract.symbol());
+        setDecimals0(await contract.symbol());
+        if (ethers.utils.isAddress(addressToken0)) {
+          const pairAddress = await factoryUNI.getPair(value, addressToken1);
+          if (pairAddress !== addressNull) {
+            setPair(pairAddress);
+            const pairContract = new ethers.Contract(pair, UniswapV2Pair, provider);
+            setInstancePair(pairContract);
+          }
+        }
+      }
+    }
+  }
   async function changeToken1(e) {
     const { value } = e.target;
     setAddressToken1(value);
     if (ethers.utils.isAddress(value)) {
       let contract = new ethers.Contract(value, Erc20, provider);
-      if (contract.address !== address0) {
-        let symbol = await contract.symbol();
-        setSymbol1(symbol);
+      if (contract.address !== addressNull) {
+        setSymbol1(await contract.symbol());
+        setDecimals1(await contract.symbol());
+        if (ethers.utils.isAddress(addressToken1)) {
+          const pairAddress = await factoryUNI.getPair(addressToken0, value);
+          if (pairAddress !== addressNull) {
+            setPair(pairAddress);
+            const pairContract = new ethers.Contract(pair, UniswapV2Pair, provider);
+            setInstancePair(pairContract);
+          }
+        }
       }
-    } else {
-      setInstanceToken1(null);
-    }
-  }
-  async function changeToken2(e) {
-    const { value } = e.target;
-    setAddressToken2(value);
-    if (ethers.utils.isAddress(value)) {
-      let contract = new ethers.Contract(value, Erc20, provider);
-      if (contract.address !== address0) {
-        let symbol = await contract.symbol();
-        setSymbol2(symbol);
-      }
-    } else {
-      setInstanceToken2(null);
     }
   }
   function changeAmount(e) {
@@ -323,132 +355,9 @@ function SwapTool() {
     }
   }
   function tokenSwapping() {
-    let address1 = addressToken1;
-    setAddressToken1(addressToken2);
-    setAddressToken2(address1);
-  }
-
-  useEffect(() => {
-    if (
-      addressToken1 &&
-      addressToken2 &&
-      ethers.utils.isAddress(addressToken1) &&
-      ethers.utils.isAddress(addressToken2)
-    ) {
-      setInstanceAndDecimalToken1();
-    }
-  }, [addressToken1, transactions]);
-  async function setInstanceAndDecimalToken1() {
-    let contractToken1 = new ethers.Contract(addressToken1, Erc20, provider);
-    let addressPair = await factoryUNI.getPair(addressToken1, addressToken2);
-    if (contractToken1.address !== address0 && addressPair !== address0) {
-      setInstanceToken1(contractToken1);
-      let decimals1 = await contractToken1.decimals();
-      const TOKEN1 = new Token(process.env.REACT_APP_CHAIN_ID, addressToken1, decimals1);
-      let pairSDK;
-      let TOKEN2;
-      if (!instanceToken2SDK) {
-        let decimalsToken2;
-        if (!decimals2) {
-          let contractToken2 = new ethers.Contract(addressToken2, Erc20, provider);
-          if (contractToken2 !== address0) {
-            decimalsToken2 = await contractToken2.decimals();
-            setDecimals1(decimalsToken2);
-          } else {
-            return;
-          }
-        } else {
-          decimalsToken2 = decimals2;
-        }
-        TOKEN2 = new Token(process.env.REACT_APP_CHAIN_ID, addressToken2, decimalsToken2);
-        setInstanceToken1SDK(TOKEN2);
-        pairSDK = await Fetcher.fetchPairData(TOKEN1, TOKEN2);
-      } else {
-        TOKEN2 = instanceToken2SDK;
-        pairSDK = await Fetcher.fetchPairData(TOKEN1, instanceToken2SDK);
-      }
-      const routeSDK = new Route([pairSDK], TOKEN1);
-      setDecimals1(decimals1);
-      setInstanceToken1SDK(TOKEN1);
-      setInstanceRouteSDK(routeSDK);
-    }
-  }
-
-  useEffect(() => {
-    if (
-      addressToken1 &&
-      addressToken2 &&
-      ethers.utils.isAddress(addressToken1) &&
-      ethers.utils.isAddress(addressToken2)
-    ) {
-      setInstanceAndDecimalToken2();
-    }
-  }, [addressToken2, transactions]);
-
-  async function setInstanceAndDecimalToken2() {
-    let contractToken2 = new ethers.Contract(addressToken2, Erc20, provider);
-    let addressPair = await factoryUNI.getPair(addressToken1, addressToken2);
-    if (contractToken2.address !== address0 && addressPair !== address0) {
-      setInstanceToken2(contractToken2);
-      let decimals2 = await contractToken2.decimals();
-      const TOKEN2 = new Token(process.env.REACT_APP_CHAIN_ID, addressToken2, decimals2);
-      let pairSDK;
-      let TOKEN1;
-      if (!instanceToken1SDK) {
-        let decimalsToken1;
-        if (!decimals1) {
-          let contractToken1 = new ethers.Contract(addressToken1, Erc20, provider);
-          if (contractToken1 !== address0) {
-            decimalsToken1 = await contractToken1.decimals();
-            setDecimals1(decimalsToken1);
-          } else {
-            return;
-          }
-        } else {
-          decimalsToken1 = decimals1;
-        }
-        TOKEN1 = new Token(process.env.REACT_APP_CHAIN_ID, addressToken1, decimalsToken1);
-        setInstanceToken1SDK(TOKEN1);
-
-        pairSDK = await Fetcher.fetchPairData(TOKEN1, TOKEN2);
-      } else {
-        TOKEN1 = instanceToken1SDK;
-        pairSDK = await Fetcher.fetchPairData(instanceToken1SDK, TOKEN2);
-      }
-      const routeSDK = new Route([pairSDK], TOKEN1);
-      setDecimals2(decimals2);
-      setInstanceToken2SDK(TOKEN2);
-      setInstanceRouteSDK(routeSDK);
-    }
-  }
-
-  async function createInstancePair() {
-    console.log('createInstancePair');
-    let pair = await factoryUNI.getPair(addressToken1, addressToken2);
-    if (pair !== address0) {
-      setPair(pair);
-      const pairContract = new ethers.Contract(pair, UniswapV2Pair, provider);
-      setInstancePair(pairContract);
-      let reverves = await pairContract.getReserves();
-      let addressToken1 = await pairContract.token0();
-      const token0 = new ethers.Contract(addressToken1, Erc20, provider);
-      let addressToken2 = await pairContract.token1();
-      const token1 = new ethers.Contract(addressToken2, Erc20, provider);
-      setLiquidity1({
-        symbol: await token0.symbol(),
-        amount: parseFloat(ethers.utils.formatUnits(reverves[0], decimals1)).toFixed(3)
-      });
-      setLiquidity2({
-        symbol: await token1.symbol(),
-        amount: parseFloat(ethers.utils.formatUnits(reverves[1], decimals2)).toFixed(3)
-      });
-    }
-  }
-
-  async function updateLiquidity() {
-    let reverves = await instancePair.getReserves();
-    setLiquidity1(parseFloat(ethers.utils.formatUnits(reverves[0], decimals1)).toFixed(3));
-    setLiquidity2(parseFloat(ethers.utils.formatUnits(reverves[1], decimals2)).toFixed(3));
+    let address1 = addressToken0;
+    setAddressToken0(addressToken1);
+    setAddressToken1(address1);
   }
 
   return (
@@ -470,11 +379,33 @@ function SwapTool() {
                 amount={amount}
               />
             </Col>
-            <Col xs={{ order: 1, span: 24 }} xl={{ order: 2, span: 6 }}>
+            <Col xs={{ order: 2, span: 24 }} xl={{ order: 2, span: 6 }}>
               <div className='box-2'>
                 <div className='content-tracking'>
                   <div className='tracking-swap'>
                     <div className='swap-input'>
+                      <div className='swap-input-token margin-top-bottom-12px'>
+                        <div className='boder-input'>
+                          <div className='label-input'>
+                            <div className='content-label'>
+                              <div className='text-label'>
+                                {symbol0 ? symbol0 : 'Address Token 0'}
+                              </div>
+                            </div>
+                          </div>
+                          <div className='token-input'>
+                            <input
+                              className='input-token'
+                              type='text'
+                              value={addressToken0}
+                              onChange={e => changeToken0(e)}
+                            ></input>
+                          </div>
+                        </div>
+                      </div>
+                      <div className='display-icon-down margin-top-bottom-12px'>
+                        <ArrowDownOutlined onClick={() => tokenSwapping()} />
+                      </div>
                       <div className='swap-input-token margin-top-bottom-12px'>
                         <div className='boder-input'>
                           <div className='label-input'>
@@ -490,28 +421,6 @@ function SwapTool() {
                               type='text'
                               value={addressToken1}
                               onChange={e => changeToken1(e)}
-                            ></input>
-                          </div>
-                        </div>
-                      </div>
-                      <div className='display-icon-down margin-top-bottom-12px'>
-                        <ArrowDownOutlined onClick={() => tokenSwapping()} />
-                      </div>
-                      <div className='swap-input-token margin-top-bottom-12px'>
-                        <div className='boder-input'>
-                          <div className='label-input'>
-                            <div className='content-label'>
-                              <div className='text-label'>
-                                {symbol2 ? symbol2 : 'Address Token 2'}
-                              </div>
-                            </div>
-                          </div>
-                          <div className='token-input'>
-                            <input
-                              className='input-token'
-                              type='text'
-                              value={addressToken2}
-                              onChange={e => changeToken2(e)}
                             ></input>
                           </div>
                         </div>
@@ -632,7 +541,7 @@ function SwapTool() {
                                 <div className='label-input'>
                                   <div className='content-label'>
                                     <div className='text-label'>
-                                      Ratio <b>{symbol2}</b> on 1 <b>{symbol1}</b>
+                                      Ratio <b>{symbol1}</b> on 1 <b>{symbol0}</b>
                                     </div>
                                   </div>
                                 </div>
@@ -686,7 +595,17 @@ function SwapTool() {
                     <div className='button-start-swap'>
                       <button
                         className='button-swap'
-                        disabled={addressToken1 && addressToken2 && privateKey ? false : true}
+                        disabled={
+                          addressToken0 &&
+                          addressToken1 &&
+                          ethers.utils.isAddress(addressToken0) &&
+                          ethers.utils.isAddress(addressToken0) &&
+                          instancePair &&
+                          privateKey &&
+                          balanceETH > calcFee(gas, gasPrice)
+                            ? false
+                            : true
+                        }
                         onClick={() => swapExactETHForTokens()}
                       >
                         <div className='text-button'>Swap</div>
@@ -697,7 +616,7 @@ function SwapTool() {
               </div>
             </Col>
 
-            <Col xs={{ order: 2, span: 24 }} xl={{ order: 3, span: 9 }}>
+            <Col xs={{ order: 1, span: 24 }} xl={{ order: 3, span: 9 }}>
               <RightSwap
                 setGasPrice={setGasPrice}
                 transactions={transactions}
@@ -705,12 +624,15 @@ function SwapTool() {
                 statusAutoSwap={statusAutoSwap}
                 setStatusAutoSwap={setStatusAutoSwap}
                 startTracking={startTracking}
+                addressToken0={addressToken0}
                 addressToken1={addressToken1}
-                addressToken2={addressToken2}
                 pair={pair}
+                liquidity0={liquidity0}
                 liquidity1={liquidity1}
-                liquidity2={liquidity2}
                 amount={amount}
+                symbol0={symbol0}
+                symbol1={symbol1}
+                setAmountOutRequired={setAmountOutRequired}
               />
             </Col>
           </Row>
