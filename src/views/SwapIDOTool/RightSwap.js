@@ -27,7 +27,7 @@ function RightSwap({
     if (liquid0 === 0 || liquid1 === 0 || !amount) {
       return;
     }
-    let out = calcAmountOut(liquid0, liquid1, amount);
+    let out = calcAmountOut(liquid0, liquid1, amount, 0);
     setMinOut(out);
   }
 

@@ -49,7 +49,6 @@ function SwapTool() {
   const [currentBlock, setCurrentBlock] = useState(null);
   const [messageLoading, setMessageLoading] = useState('');
   const [loadingAutoSwap, setLoadingAutoSwap] = useState(false);
-  const [ratioT1toT2, setRatioT1toT2] = useState();
   const [priceETH, setPiceETH] = useState(null);
 
   useEffect(() => {
@@ -194,7 +193,7 @@ function SwapTool() {
       setLoadingSlippage(false);
       return;
     }
-    setAmountMin(calcAmountOut(liquidity0, liquidity1, amount));
+    setAmountMin(calcAmountOut(liquidity0, liquidity1, amount, slippage));
     setLoadingSlippage(false);
   }
 
@@ -364,14 +363,6 @@ function SwapTool() {
       setSlippage(value);
     }
   }
-  function changeRatioT1toT2(e) {
-    const { value } = e.target;
-    const reg = /^-?\d*(\.\d*)?$/;
-    if ((!isNaN(value) && reg.test(value)) || value === '') {
-      setRatioT1toT2(value);
-      setAmountOutRequired(parseFloat(value) > 0 ? parseFloat(value) * amount : 0);
-    }
-  }
   function tokenSwapping() {
     let address1 = addressToken0;
     setAddressToken0(addressToken1);
@@ -497,23 +488,50 @@ function SwapTool() {
                           </div>
                         </div>
                       </div>
-                      <div className='display-slippage margin-top-bottom-12px'>
-                        <div className='box-slippage'>
-                          <div className='slippage-tolerance'>
-                            <div className='text-slippage'>Slippage Tolerance</div>
-                            <div className='slippage'>
-                              <Input
-                                size='small'
-                                className='input-slippage'
-                                onChange={e => changeSlippage(e)}
-                                onBlur={() => calcTrade()}
-                                onPressEnter={() => calcTrade()}
-                                placeholder={slippage}
-                              />
-                              &nbsp;%
+                      <div className='swap-group-amount-gas margin-top-bottom-12px'>
+                        <Row justify='space-between'>
+                          <Col span={11}>
+                            <div className='swap-input-gas-price'>
+                              <div className='boder-input'>
+                                <div className='label-input'>
+                                  <div className='content-label'>
+                                    <div className='text-label'>Gas Price</div>
+                                  </div>
+                                </div>
+                                <div className='token-input'>
+                                  <input
+                                    className='input-token'
+                                    type='text'
+                                    value={gasPrice}
+                                    onChange={e => changeGasPrice(e)}
+                                  ></input>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
+                          </Col>
+                          <Col span={11}>
+                            <div className='swap-input-slippage'>
+                              <div className='boder-input'>
+                                <div className='label-input'>
+                                  <div className='content-label'>
+                                    <div className='text-label'>Slippage Tolerance</div>
+                                  </div>
+                                </div>
+                                <div className='token-input'>
+                                  <Input
+                                    className='input-token'
+                                    bordered={false}
+                                    size='small'
+                                    onChange={e => changeSlippage(e)}
+                                    onBlur={() => calcTrade()}
+                                    onPressEnter={() => calcTrade()}
+                                    placeholder={slippage}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </Col>
+                        </Row>
                       </div>
                       <div className='swap-input-token margin-top-bottom-12px'>
                         <div className='boder-input'>
@@ -550,52 +568,6 @@ function SwapTool() {
                             ></Input>
                           </div>
                         </div>
-                      </div>
-                      <div className='swap-group-amount-gas margin-top-bottom-12px'>
-                        <Row justify='space-between'>
-                          <Col span={11}>
-                            <div className='swap-input-gas'>
-                              <div className='boder-input'>
-                                <div className='label-input'>
-                                  <div className='content-label'>
-                                    <div className='text-label'>
-                                      Ratio <b>{symbol1}</b> on 1 <b>{symbol0}</b>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className='token-input'>
-                                  <input
-                                    className='input-token'
-                                    type='text'
-                                    onChange={e => {
-                                      changeRatioT1toT2(e);
-                                    }}
-                                    value={ratioT1toT2}
-                                  ></input>
-                                </div>
-                              </div>
-                            </div>
-                          </Col>
-                          <Col span={11}>
-                            <div className='swap-input-gas-price'>
-                              <div className='boder-input'>
-                                <div className='label-input'>
-                                  <div className='content-label'>
-                                    <div className='text-label'>Gas Price</div>
-                                  </div>
-                                </div>
-                                <div className='token-input'>
-                                  <input
-                                    className='input-token'
-                                    type='text'
-                                    value={gasPrice}
-                                    onChange={e => changeGasPrice(e)}
-                                  ></input>
-                                </div>
-                              </div>
-                            </div>
-                          </Col>
-                        </Row>
                       </div>
                       <div className='display-fee margin-top-bottom-12px'>
                         <div className='box-slippage'>

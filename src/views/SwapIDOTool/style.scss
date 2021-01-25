@@ -108,11 +108,6 @@
                       font-weight: 500;
                       font-size: 14px;
                       color: rgb(86, 90, 105);
-                      .input-slippage {
-                        border-radius: 8px;
-                        width: 66px;
-                        text-align: right;
-                      }
                     }
                   }
                 }
@@ -160,7 +155,7 @@
               }
               .swap-group-amount-gas {
                 .swap-input-gas-price,
-                .swap-input-gas {
+                .swap-input-slippage {
                   display: flex;
                   flex-flow: column nowrap;
                   position: relative;
@@ -439,7 +434,7 @@
               grid-row-gap: 12px;
               row-gap: 12px;
               .swap-input-amount,
-              .swap-input-gas {
+              .swap-input-slippage {
                 width: 100%;
               }
               .swap-input-amount {
