@@ -23,3 +23,7 @@ yarn.lock
 
 
 .env
+
+.firebaserc
+firebase.json
+.firebase/*

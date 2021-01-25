@@ -29,8 +29,9 @@ export function calcFee(gasLimit, gasPrice) {
     : 0;
 }
 
-export function calcAmountOut(liquidity1, liquidity2, amountIn) {
+export function calcAmountOut(liquidity1, liquidity2, amountIn, slippage) {
   return parseFloat(
-    (liquidity2 * amountIn * 997) / (parseFloat(liquidity1) * 1000 + parseFloat(amountIn) * 997)
+    ((liquidity2 * amountIn * 997) / (parseFloat(liquidity1) * 1000 + parseFloat(amountIn) * 997)) *
+      (100 / (100 + parseFloat(slippage)))
   ).toFixed(6);
 }
