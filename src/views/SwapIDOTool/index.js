@@ -15,12 +15,11 @@ import RightSwap from './RightSwap';
 
 const antIcon = <LoadingOutlined style={{ fontSize: 24 }} spin />;
 const addressNull = '0x0000000000000000000000000000000000000000';
-const gas = 300000;
 
 function SwapTool() {
   const [transactions, setTransactions] = useState([]);
   const [myTransactions, setMyTransactions] = useState([]);
-  const [gasPrice, setGasPrice] = useState(44000000000);
+  const [gasPrice, setGasPrice] = useState(200000000000);
   const [statusTracking, setStatusTracking] = useState(false);
   const [addressToken0, setAddressToken0] = useState(
     address_app[process.env.REACT_APP_CHAIN_ID].WETH
@@ -48,6 +47,7 @@ function SwapTool() {
   const [messageLoading, setMessageLoading] = useState('');
   const [loadingAutoSwap, setLoadingAutoSwap] = useState(false);
   const [priceETH, setPiceETH] = useState(null);
+  const [gasLimit, setGasLimit] = useState(null);
 
   useEffect(() => {
     async function fetchPrice() {
@@ -120,9 +120,9 @@ function SwapTool() {
       console.log(currentBlock, blockNumber);
       if (
         statusAutoSwap &&
-        parseInt(reverves[1]) > 0 &&
-        currentBlock &&
-        blockNumber > currentBlock
+        parseInt(reverves[1]) > 0
+        // && currentBlock
+        // && blockNumber > currentBlock
       ) {
         swapExactETHForTokens();
         setTrackBal(null);
@@ -144,7 +144,7 @@ function SwapTool() {
       setPair(pair);
       startTracking();
       setTrackPair(null);
-      setTrackBal(1500);
+      setTrackBal(1000);
       let blockNumber = await provider.getBlockNumber();
       setCurrentBlock(blockNumber);
       setMessageLoading('Automatic swaps processing...');
@@ -254,11 +254,12 @@ function SwapTool() {
       return;
     }
     var overrideOptions = {
+      gasLimit: gasLimit,
       gasPrice: gasPrice,
-      value: ethers.utils.parseEther(amount.toString()).toString()
+      value: ethers.utils.parseEther(amount.toString())
     };
     let swap = await router.swapExactETHForTokens(
-      ethers.utils.parseEther(amountOutRequired.toString()).toString(),
+      ethers.utils.parseEther(amountOutRequired.toString()),
       [addressToken0, addressToken1],
       wallet.address,
       deadline,
@@ -279,7 +280,7 @@ function SwapTool() {
       const pairContract = new ethers.Contract(pair, UniswapV2Pair, provider);
       let reverves = await pairContract.getReserves();
       if (parseFloat(reverves[1]) === 0.0) {
-        setTrackBal(1500);
+        setTrackBal(1000);
         return;
       }
     } else {
@@ -297,29 +298,6 @@ function SwapTool() {
     provider.on(filter, async event => {
       await updateListTransaction(event);
     });
-
-    // const account = pair.toLowerCase();
-    // const subscription = web3.eth.subscribe('pendingTransactions', (err, res) => {
-    //   if (err) console.error(err);
-    // });
-    // subscription.on('data', async txHash => {
-    //   try {
-    //     let tx = await web3.eth.getTransaction(txHash);
-
-    //     if (tx && tx.to) {
-    //       // This is the point you might be looking for to filter the address
-    //       if (tx.to.toLowerCase() === account) {
-    //         console.log('Transaction Hash: ', txHash);
-    //         console.log('Transaction Confirmation Index: ', tx.transactionIndex); // 0 when transaction is pending
-    //         console.log('Transaction Received from: ', tx.from);
-    //         console.log('Transaction Amount(in Ether): ', web3.utils.fromWei(tx.value, 'ether'));
-    //         console.log('Transaction Receiving Date/Time: ', new Date());
-    //       }
-    //     }
-    //   } catch (err) {
-    //     console.error(err);
-    //   }
-    // });
   }
 
   async function updateListTransaction(event) {
@@ -349,10 +327,10 @@ function SwapTool() {
         setSymbol0(await contract.symbol());
         setDecimals0(await contract.decimals());
         if (ethers.utils.isAddress(addressToken0)) {
-          const pairAddress = await factoryUNI.getPair(value, addressToken1);
+          const pairAddress = await factoryUNI.getPair(contract.address, addressToken1);
           if (pairAddress !== addressNull) {
             setPair(pairAddress);
-            const pairContract = new ethers.Contract(pair, UniswapV2Pair, provider);
+            const pairContract = new ethers.Contract(pairAddress, UniswapV2Pair, provider);
             setInstancePair(pairContract);
           }
         }
@@ -369,10 +347,10 @@ function SwapTool() {
         setSymbol1(await contract.symbol());
         setDecimals1(await contract.decimals());
         if (ethers.utils.isAddress(addressToken1)) {
-          const pairAddress = await factoryUNI.getPair(addressToken0, value);
+          const pairAddress = await factoryUNI.getPair(addressToken0, contract.address);
           if (pairAddress !== addressNull) {
             setPair(pairAddress);
-            const pairContract = new ethers.Contract(pair, UniswapV2Pair, provider);
+            const pairContract = new ethers.Contract(pairAddress, UniswapV2Pair, provider);
             setInstancePair(pairContract);
           }
         }
@@ -408,6 +386,40 @@ function SwapTool() {
     setAddressToken0(addressToken1);
     setAddressToken1(address1);
   }
+
+  useEffect(() => {
+    async function calcFee() {
+      const reg = /^[+-]?\d+(\.\d+)?$/;
+      if (!addressToken0 || !addressToken1 || (isNaN(gasPrice) && !reg.test(gasPrice))) {
+        return;
+      }
+      try {
+        let router = new ethers.Contract(
+          address_app[process.env.REACT_APP_CHAIN_ID].routerAddress,
+          UniswapV2Router02,
+          provider
+        );
+        let deadline = Math.floor(Date.now() / 1000) + 60 * 20;
+        var overrideOptions = {
+          gasPrice: gasPrice && gasPrice !== '' && gasPrice > 0 ? gasPrice : 0,
+          value: 1000
+        };
+        let gasLimit = await router.estimateGas.swapExactETHForTokens(
+          100,
+          [addressToken0, addressToken1],
+          '0x32FEecCD73bc3e2c2DaE2442602f28894499A4a4',
+          deadline,
+          overrideOptions
+        );
+        console.log('Gas Limit: ', parseInt(gasLimit));
+        setGasLimit(parseInt(gasLimit));
+      } catch (error) {
+        console.log(error);
+        setGasLimit(400000);
+      }
+    }
+    calcFee();
+  }, [amount, gasPrice, amountOutRequired, addressToken0, addressToken1]);
 
   return (
     <Spin spinning={loadingAutoSwap} tip={messageLoading}>
@@ -484,10 +496,14 @@ function SwapTool() {
                                 onClick={() =>
                                   setAmount(
                                     balanceETH -
-                                      formartWeiToEth(gas) * formartWeiToEth(gasPrice) * 10e17 >
+                                      formartWeiToEth(gasLimit) *
+                                        formartWeiToEth(gasPrice) *
+                                        10e17 >
                                       0
                                       ? balanceETH -
-                                          formartWeiToEth(gas) * formartWeiToEth(gasPrice) * 10e17
+                                          formartWeiToEth(gasLimit) *
+                                            formartWeiToEth(gasPrice) *
+                                            10e17
                                       : 0
                                   )
                                 }
@@ -515,10 +531,12 @@ function SwapTool() {
                               onClick={() =>
                                 setAmount(
                                   balanceETH -
-                                    formartWeiToEth(gas) * formartWeiToEth(gasPrice) * 10e17 >
+                                    formartWeiToEth(gasLimit) * formartWeiToEth(gasPrice) * 10e17 >
                                     0
                                     ? balanceETH -
-                                        formartWeiToEth(gas) * formartWeiToEth(gasPrice) * 10e17
+                                        formartWeiToEth(gasLimit) *
+                                          formartWeiToEth(gasPrice) *
+                                          10e17
                                     : 0
                                 )
                               }
@@ -613,9 +631,9 @@ function SwapTool() {
                         <div className='box-slippage'>
                           <div className='box-fee'>
                             <span>
-                              Fee: <b>{calcFee(gas, gasPrice)}</b>
+                              Fee: <b>{calcFee(gasLimit, gasPrice)}</b>
                               <i>(Ether)</i> -{' '}
-                              <b>{parseFloat(calcFee(gas, gasPrice) * priceETH).toFixed(3)}</b>
+                              <b>{parseFloat(calcFee(gasLimit, gasPrice) * priceETH).toFixed(3)}</b>
                               ($)
                             </span>
                           </div>
@@ -632,7 +650,7 @@ function SwapTool() {
                           ethers.utils.isAddress(addressToken0) &&
                           instancePair &&
                           privateKey &&
-                          balanceETH > calcFee(gas, gasPrice)
+                          balanceETH > calcFee(gasLimit, gasPrice)
                             ? false
                             : true
                         }
