@@ -26,9 +26,7 @@ function SwapTool() {
     address_app[process.env.REACT_APP_CHAIN_ID].WETH
   );
   const [balanceETH, setbBlanceETH] = useState(0);
-  const [addressToken1, setAddressToken1] = useState(
-    address_app[process.env.REACT_APP_CHAIN_ID].DAI
-  );
+  const [addressToken1, setAddressToken1] = useState('');
   const [pair, setPair] = useState(null);
   const [liquidity0, setLiquidity0] = useState(0);
   const [liquidity1, setLiquidity1] = useState(0);
@@ -41,7 +39,7 @@ function SwapTool() {
   const [decimals0, setDecimals0] = useState();
   const [decimals1, setDecimals1] = useState(null);
   const [symbol0, setSymbol0] = useState('WETH');
-  const [symbol1, setSymbol1] = useState('DAI');
+  const [symbol1, setSymbol1] = useState();
   const [trackPair, setTrackPair] = useState(null);
   const [trackBal, setTrackBal] = useState(null);
   const [statusAutoSwap, setStatusAutoSwap] = useState(true);
@@ -59,6 +57,7 @@ function SwapTool() {
       console.log('price ETH: ', tokenPrice);
       setPiceETH(tokenPrice);
     }
+    fetchPrice();
 
     async function getBalanceETH() {
       try {
@@ -71,10 +70,46 @@ function SwapTool() {
         setbBlanceETH(0);
       }
     }
-    fetchPrice();
     if (privateKey) {
       getBalanceETH();
     }
+
+    async function loadAddressLocalStorage() {
+      let amount = parseFloat(localStorage.getItem('amount'));
+      if (amount > 0) {
+        setAmount(amount);
+      }
+
+      let amountOutRequired = parseFloat(localStorage.getItem('amountOutRequired'));
+      if (amountOutRequired > 0) {
+        setAmountOutRequired(amountOutRequired);
+      }
+
+      let slippage = parseFloat(localStorage.getItem('slippage'));
+      if (slippage > 0) {
+        setSlippage(slippage);
+      }
+
+      let token1 = localStorage.getItem('token1');
+      if (ethers.utils.isAddress(token1)) {
+        setAddressToken1(token1);
+        let contract = new ethers.Contract(token1, Erc20, provider);
+        if (contract.address !== addressNull) {
+          setSymbol1(await contract.symbol());
+          setDecimals1(await contract.decimals());
+        }
+      }
+      let token0 = localStorage.getItem('token0');
+      if (ethers.utils.isAddress(token0)) {
+        setAddressToken0(token0);
+        let contract = new ethers.Contract(token0, Erc20, provider);
+        if (contract.address !== addressNull) {
+          setSymbol1(await contract.symbol());
+          setDecimals1(await contract.decimals());
+        }
+      }
+    }
+    loadAddressLocalStorage();
   }, []);
 
   useInterval(async () => {
@@ -306,6 +341,7 @@ function SwapTool() {
   }
   async function changeToken0(e) {
     const { value } = e.target;
+    localStorage.setItem('token0', value);
     setAddressToken0(value);
     if (ethers.utils.isAddress(value)) {
       let contract = new ethers.Contract(value, Erc20, provider);
@@ -326,6 +362,7 @@ function SwapTool() {
   async function changeToken1(e) {
     const { value } = e.target;
     setAddressToken1(value);
+    localStorage.setItem('token1', value);
     if (ethers.utils.isAddress(value)) {
       let contract = new ethers.Contract(value, Erc20, provider);
       if (contract.address !== addressNull) {
@@ -347,13 +384,15 @@ function SwapTool() {
     const reg = /^-?\d*(\.\d*)?$/;
     if ((!isNaN(value) && reg.test(value)) || value === '') {
       setAmount(value);
+      localStorage.setItem('amount', value);
     }
   }
-  function changeAmountOut(e) {
+  function changeAmountOutRequired(e) {
     const { value } = e.target;
     const reg = /^-?\d*(\.\d*)?$/;
     if ((!isNaN(value) && reg.test(value)) || value === '') {
       setAmountOutRequired(value);
+      localStorage.setItem('amountOutRequired', value);
     }
   }
   function changeSlippage(e) {
@@ -361,6 +400,7 @@ function SwapTool() {
     const reg = /^-?\d*(\.\d*)?$/;
     if ((!isNaN(value) && reg.test(value)) || value === '') {
       setSlippage(value);
+      localStorage.setItem('slippage', value);
     }
   }
   function tokenSwapping() {
@@ -563,7 +603,7 @@ function SwapTool() {
                               type='text'
                               value={amountOutRequired}
                               onChange={e => {
-                                changeAmountOut(e);
+                                changeAmountOutRequired(e);
                               }}
                             ></Input>
                           </div>
