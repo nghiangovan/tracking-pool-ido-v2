@@ -9,6 +9,7 @@
     "@testing-library/react": "^11.1.0",
     "@testing-library/user-event": "^12.1.10",
     "antd": "^4.10.2",
+    "ethereum-input-data-decoder": "^0.3.1",
     "ethers": "^5.0.24",
     "pretty-ms": "^7.0.1",
     "react": "^16.13.1",

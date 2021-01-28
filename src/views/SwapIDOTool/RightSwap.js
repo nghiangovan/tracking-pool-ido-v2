@@ -17,7 +17,8 @@ function RightSwap({
   amount,
   symbol0,
   symbol1,
-  setAmountOutRequired
+  setAmountOutRequired,
+  disabledSwapAuto
 }) {
   const [liquid0, setLiquid1] = useState(0);
   const [liquid1, setLiquid2] = useState(0);
@@ -61,7 +62,11 @@ function RightSwap({
             >
               <div className='text-button'>Start</div>
             </button>
-            <Checkbox onChange={e => setStatusAutoSwap(e.target.checked)} checked={statusAutoSwap}>
+            <Checkbox
+              onChange={e => setStatusAutoSwap(e.target.checked)}
+              checked={statusAutoSwap}
+              disabled={disabledSwapAuto}
+            >
               Auto Swap
             </Checkbox>
           </div>

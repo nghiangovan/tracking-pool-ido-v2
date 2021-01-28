@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import './style.scss';
 import useInterval from 'utils/useInterval';
+import InputDataDecoder from 'ethereum-input-data-decoder';
 import { message, Input, Row, Col, Button, Spin } from 'antd';
 import { ArrowDownOutlined, LoadingOutlined } from '@ant-design/icons';
 import UniswapV2Pair from 'contracts/UniswapV2Pair.json';
@@ -9,17 +10,18 @@ import UniswapV2Router02 from 'contracts/UniswapRouterV2.json';
 import { ethers } from 'ethers';
 import { formartWeiToEth, calcFee, calcAmountOut } from 'utils/common';
 import { factoryUNI } from 'utils/factoryUNI';
-import { provider, address_app } from 'utils/provider';
+import { provider, providerListen, address_app } from 'utils/provider';
 import LeftSwap from './LeftSwap';
 import RightSwap from './RightSwap';
 
 const antIcon = <LoadingOutlined style={{ fontSize: 24 }} spin />;
 const addressNull = '0x0000000000000000000000000000000000000000';
+const decoder = new InputDataDecoder(UniswapV2Router02);
 
 function SwapTool() {
   const [transactions, setTransactions] = useState([]);
   const [myTransactions, setMyTransactions] = useState([]);
-  const [gasPrice, setGasPrice] = useState(200000000000);
+  const [gasPrice, setGasPrice] = useState(180000000000);
   const [statusTracking, setStatusTracking] = useState(false);
   const [addressToken0, setAddressToken0] = useState(
     address_app[process.env.REACT_APP_CHAIN_ID].WETH
@@ -39,15 +41,12 @@ function SwapTool() {
   const [decimals1, setDecimals1] = useState(null);
   const [symbol0, setSymbol0] = useState('WETH');
   const [symbol1, setSymbol1] = useState();
-  const [trackPair, setTrackPair] = useState(null);
-  const [trackBal, setTrackBal] = useState(null);
   const [statusAutoSwap, setStatusAutoSwap] = useState(true);
   const [loadingSlippage, setLoadingSlippage] = useState(false);
-  const [currentBlock, setCurrentBlock] = useState(null);
-  const [messageLoading, setMessageLoading] = useState('');
-  const [loadingAutoSwap, setLoadingAutoSwap] = useState(false);
   const [priceETH, setPiceETH] = useState(null);
   const [gasLimit, setGasLimit] = useState(null);
+  const [disabledSwapAuto, setDisabledSwapAuto] = useState(false);
+  const [delayIntervalGetPair, setDelayIntervalGetPair] = useState(null);
 
   useEffect(() => {
     async function fetchPrice() {
@@ -112,45 +111,76 @@ function SwapTool() {
     loadAddressLocalStorage();
   }, []);
 
-  useInterval(async () => {
-    console.log('tracking balance...');
-    if (instancePair && pair !== addressNull) {
-      let reverves = await instancePair.getReserves();
-      let blockNumber = await provider.getBlockNumber();
-      console.log(currentBlock, blockNumber);
-      if (
-        statusAutoSwap &&
-        parseInt(reverves[1]) > 0
-        // && currentBlock
-        // && blockNumber > currentBlock
-      ) {
-        swapExactETHForTokens();
-        setTrackBal(null);
-        startTracking();
-        setLoadingAutoSwap(false);
-        setMessageLoading('');
+  async function startTracking() {
+    console.log('Start Tracking');
+    setStatusTracking(true);
+    let pair = await factoryUNI.getPair(addressToken0, addressToken1);
+    if (pair !== addressNull) {
+      const pairContract = new ethers.Contract(pair, UniswapV2Pair, provider);
+      let reverves = await pairContract.getReserves();
+      if (parseFloat(reverves[1]) === 0.0) {
+        createInstancePair();
+        setStatusAutoSwap(true);
+        setDisabledSwapAuto(false);
+        listenAddliquidity('tracking balance...');
+        return;
       }
     } else {
-      createInstancePair();
+      setPair(addressNull);
+      setStatusAutoSwap(true);
+      setDisabledSwapAuto(false);
+      listenAddliquidity('tracking pair...');
+      return;
     }
-  }, trackBal);
-
-  useInterval(async () => {
-    console.log('tracking pair...');
-    let pair = await factoryUNI.getPair(addressToken0, addressToken1);
     setPair(pair);
-    setAmountMin(0);
+    console.log('pair', pair);
+    createInstancePair();
+    setStatusAutoSwap(false);
+    setDisabledSwapAuto(true);
+    message.success('Start Tracking');
+    let filter = {
+      address: pair,
+      topics: [ethers.utils.id('Swap(address,uint256,uint256,uint256,uint256,address)')]
+    };
+    provider.on(filter, async event => {
+      await updateListTransaction(event);
+    });
+  }
+
+  function listenAddliquidity(statusMessage) {
+    const listenTransactions = providerListen.on('pending', async txtHash => {
+      console.log(statusMessage);
+      try {
+        let tx = await providerListen.getTransaction(txtHash);
+        if (tx && tx.to) {
+          if (
+            tx.to.toLowerCase() ===
+            address_app[process.env.REACT_APP_CHAIN_ID].routerAddress.toLocaleLowerCase()
+          ) {
+            let dDecode = decoder.decodeData(tx.data);
+            if (
+              dDecode.method === 'addLiquidityETH' &&
+              `0x${dDecode.inputs[0].toLocaleLowerCase()}` === addressToken1.toLocaleLowerCase()
+            ) {
+              await swapExactETHForTokens();
+              await listenTransactions.destroy();
+              setDelayIntervalGetPair(1000);
+            }
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  }
+  useInterval(async () => {
+    let pair = await factoryUNI.getPair(addressToken0, addressToken1);
     if (pair !== addressNull) {
       setPair(pair);
-      startTracking();
-      setTrackPair(null);
-      setTrackBal(1000);
-      let blockNumber = await provider.getBlockNumber();
-      setCurrentBlock(blockNumber);
-      setMessageLoading('Automatic swaps processing...');
-      setLoadingAutoSwap(true);
+      await startTracking();
+      setDelayIntervalGetPair(null);
     }
-  }, trackPair);
+  }, delayIntervalGetPair);
 
   async function createInstancePair() {
     console.log('createInstancePair');
@@ -270,34 +300,6 @@ function SwapTool() {
     swap['key'] = swap.hash;
     console.log(swap);
     setMyTransactions(myTransactions => [swap, ...myTransactions]);
-  }
-
-  async function startTracking() {
-    console.log('Start Tracking');
-    setStatusTracking(true);
-    let pair = await factoryUNI.getPair(addressToken0, addressToken1);
-    if (pair !== addressNull) {
-      const pairContract = new ethers.Contract(pair, UniswapV2Pair, provider);
-      let reverves = await pairContract.getReserves();
-      if (parseFloat(reverves[1]) === 0.0) {
-        setTrackBal(1000);
-        return;
-      }
-    } else {
-      setTrackPair(1000);
-      return;
-    }
-    setPair(pair);
-    console.log('pair', pair);
-    createInstancePair();
-    message.success('Start Tracking');
-    let filter = {
-      address: pair,
-      topics: [ethers.utils.id('Swap(address,uint256,uint256,uint256,uint256,address)')]
-    };
-    provider.on(filter, async event => {
-      await updateListTransaction(event);
-    });
   }
 
   async function updateListTransaction(event) {
@@ -422,112 +424,76 @@ function SwapTool() {
   }, [amount, gasPrice, amountOutRequired, addressToken0, addressToken1]);
 
   return (
-    <Spin spinning={loadingAutoSwap} tip={messageLoading}>
-      <div className='swap-IDO-tool'>
-        <div className='header'>
-          <h1>Tool Follow IDO</h1>
-        </div>
-        <div className='content'>
-          <Row>
-            <Col xs={{ order: 3, span: 24 }} xl={{ order: 1, span: 9 }}>
-              <LeftSwap
-                setGasPrice={setGasPrice}
-                privateKey={privateKey}
-                setPrivateKey={setPrivateKey}
-                setbBlanceETH={setbBlanceETH}
-                myTransactions={myTransactions}
-                provider={provider}
-                amount={amount}
-              />
-            </Col>
-            <Col xs={{ order: 2, span: 24 }} xl={{ order: 2, span: 6 }}>
-              <div className='box-2'>
-                <div className='content-tracking'>
-                  <div className='tracking-swap'>
-                    <div className='swap-input'>
-                      <div className='swap-input-token margin-top-bottom-12px'>
-                        <div className='boder-input'>
-                          <div className='label-input'>
-                            <div className='content-label'>
-                              <div className='text-label'>
-                                {symbol0 ? symbol0 : 'Address Token 0'}
-                              </div>
+    <div className='swap-IDO-tool'>
+      <div className='header'>
+        <h1>Tool Follow IDO</h1>
+      </div>
+      <div className='content'>
+        <Row>
+          <Col xs={{ order: 3, span: 24 }} xl={{ order: 1, span: 9 }}>
+            <LeftSwap
+              setGasPrice={setGasPrice}
+              privateKey={privateKey}
+              setPrivateKey={setPrivateKey}
+              setbBlanceETH={setbBlanceETH}
+              myTransactions={myTransactions}
+              provider={provider}
+              amount={amount}
+            />
+          </Col>
+          <Col xs={{ order: 2, span: 24 }} xl={{ order: 2, span: 6 }}>
+            <div className='box-2'>
+              <div className='content-tracking'>
+                <div className='tracking-swap'>
+                  <div className='swap-input'>
+                    <div className='swap-input-token margin-top-bottom-12px'>
+                      <div className='boder-input'>
+                        <div className='label-input'>
+                          <div className='content-label'>
+                            <div className='text-label'>
+                              {symbol0 ? symbol0 : 'Address Token 0'}
                             </div>
-                          </div>
-                          <div className='token-input'>
-                            <input
-                              className='input-token'
-                              type='text'
-                              value={addressToken0}
-                              onChange={e => changeToken0(e)}
-                            ></input>
                           </div>
                         </div>
-                      </div>
-                      <div className='display-icon-down margin-top-bottom-12px'>
-                        <ArrowDownOutlined onClick={() => tokenSwapping()} />
-                      </div>
-                      <div className='swap-input-token margin-top-bottom-12px'>
-                        <div className='boder-input'>
-                          <div className='label-input'>
-                            <div className='content-label'>
-                              <div className='text-label'>
-                                {symbol1 ? symbol1 : 'Address Token 1'}
-                              </div>
-                            </div>
-                          </div>
-                          <div className='token-input'>
-                            <input
-                              className='input-token'
-                              type='text'
-                              value={addressToken1}
-                              onChange={e => changeToken1(e)}
-                            ></input>
-                          </div>
+                        <div className='token-input'>
+                          <input
+                            className='input-token'
+                            type='text'
+                            value={addressToken0}
+                            onChange={e => changeToken0(e)}
+                          ></input>
                         </div>
                       </div>
-                      <div className='swap-input-token margin-top-bottom-12px'>
-                        <div className='boder-input'>
-                          <div className='label-input'>
-                            <div className='content-label'>
-                              <div className='text-label'>Amount</div>
-                              <div
-                                className='display-balance'
-                                onClick={() =>
-                                  setAmount(
-                                    balanceETH -
-                                      formartWeiToEth(gasLimit) *
-                                        formartWeiToEth(gasPrice) *
-                                        10e17 >
-                                      0
-                                      ? balanceETH -
-                                          formartWeiToEth(gasLimit) *
-                                            formartWeiToEth(gasPrice) *
-                                            10e17
-                                      : 0
-                                  )
-                                }
-                              >
-                                Balance(ETH): {balanceETH}
-                              </div>
+                    </div>
+                    <div className='display-icon-down margin-top-bottom-12px'>
+                      <ArrowDownOutlined onClick={() => tokenSwapping()} />
+                    </div>
+                    <div className='swap-input-token margin-top-bottom-12px'>
+                      <div className='boder-input'>
+                        <div className='label-input'>
+                          <div className='content-label'>
+                            <div className='text-label'>
+                              {symbol1 ? symbol1 : 'Address Token 1'}
                             </div>
                           </div>
-                          <div className='token-input'>
-                            <Input
-                              min={0.1}
-                              step={0.1}
-                              bordered={false}
-                              className='input-token'
-                              type='text'
-                              value={amount}
-                              onPressEnter={() => calcTrade()}
-                              onBlur={() => calcTrade()}
-                              onChange={e => changeAmount(e)}
-                            ></Input>
-                            <Button
-                              type='primary'
-                              shape='round'
-                              className='button-max'
+                        </div>
+                        <div className='token-input'>
+                          <input
+                            className='input-token'
+                            type='text'
+                            value={addressToken1}
+                            onChange={e => changeToken1(e)}
+                          ></input>
+                        </div>
+                      </div>
+                    </div>
+                    <div className='swap-input-token margin-top-bottom-12px'>
+                      <div className='boder-input'>
+                        <div className='label-input'>
+                          <div className='content-label'>
+                            <div className='text-label'>Amount</div>
+                            <div
+                              className='display-balance'
                               onClick={() =>
                                 setAmount(
                                   balanceETH -
@@ -541,152 +507,183 @@ function SwapTool() {
                                 )
                               }
                             >
-                              MAX
-                            </Button>
+                              Balance(ETH): {balanceETH}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className='swap-group-amount-gas margin-top-bottom-12px'>
-                        <Row justify='space-between'>
-                          <Col span={11}>
-                            <div className='swap-input-gas-price'>
-                              <div className='boder-input'>
-                                <div className='label-input'>
-                                  <div className='content-label'>
-                                    <div className='text-label'>Gas Price</div>
-                                  </div>
-                                </div>
-                                <div className='token-input'>
-                                  <input
-                                    className='input-token'
-                                    type='text'
-                                    value={gasPrice}
-                                    onChange={e => changeGasPrice(e)}
-                                  ></input>
-                                </div>
-                              </div>
-                            </div>
-                          </Col>
-                          <Col span={11}>
-                            <div className='swap-input-slippage'>
-                              <div className='boder-input'>
-                                <div className='label-input'>
-                                  <div className='content-label'>
-                                    <div className='text-label'>Slippage Tolerance</div>
-                                  </div>
-                                </div>
-                                <div className='token-input'>
-                                  <Input
-                                    className='input-token'
-                                    bordered={false}
-                                    size='small'
-                                    onChange={e => changeSlippage(e)}
-                                    onBlur={() => calcTrade()}
-                                    onPressEnter={() => calcTrade()}
-                                    placeholder={slippage}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </Col>
-                        </Row>
-                      </div>
-                      <div className='swap-input-token margin-top-bottom-12px'>
-                        <div className='boder-input'>
-                          <div className='label-input'>
-                            <div className='content-label'>
-                              <div className='text-label'>Amount Out Require</div>
-                              <div
-                                className='display-balance'
-                                onClick={() => setAmountOutRequired(amountOutMin)}
-                              >
-                                Amount min:
-                                {loadingSlippage ? (
-                                  <span>
-                                    &nbsp; &nbsp;
-                                    <Spin indicator={antIcon} />
-                                  </span>
-                                ) : (
-                                  amountOutMin
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className='token-input'>
-                            <Input
-                              min={0.1}
-                              step={0.1}
-                              bordered={false}
-                              className='input-token'
-                              type='text'
-                              value={amountOutRequired}
-                              onChange={e => {
-                                changeAmountOutRequired(e);
-                              }}
-                            ></Input>
-                          </div>
-                        </div>
-                      </div>
-                      <div className='display-fee margin-top-bottom-12px'>
-                        <div className='box-slippage'>
-                          <div className='box-fee'>
-                            <span>
-                              Fee: <b>{calcFee(gasLimit, gasPrice)}</b>
-                              <i>(Ether)</i> -{' '}
-                              <b>{parseFloat(calcFee(gasLimit, gasPrice) * priceETH).toFixed(3)}</b>
-                              ($)
-                            </span>
-                          </div>
+                        <div className='token-input'>
+                          <Input
+                            min={0.1}
+                            step={0.1}
+                            bordered={false}
+                            className='input-token'
+                            type='text'
+                            value={amount}
+                            onPressEnter={() => calcTrade()}
+                            onBlur={() => calcTrade()}
+                            onChange={e => changeAmount(e)}
+                          ></Input>
+                          <Button
+                            type='primary'
+                            shape='round'
+                            className='button-max'
+                            onClick={() =>
+                              setAmount(
+                                balanceETH -
+                                  formartWeiToEth(gasLimit) * formartWeiToEth(gasPrice) * 10e17 >
+                                  0
+                                  ? balanceETH -
+                                      formartWeiToEth(gasLimit) * formartWeiToEth(gasPrice) * 10e17
+                                  : 0
+                              )
+                            }
+                          >
+                            MAX
+                          </Button>
                         </div>
                       </div>
                     </div>
-                    <div className='button-start-swap'>
-                      <button
-                        className='button-swap'
-                        disabled={
-                          addressToken0 &&
-                          addressToken1 &&
-                          ethers.utils.isAddress(addressToken0) &&
-                          ethers.utils.isAddress(addressToken0) &&
-                          instancePair &&
-                          privateKey &&
-                          balanceETH > calcFee(gasLimit, gasPrice)
-                            ? false
-                            : true
-                        }
-                        onClick={() => swapExactETHForTokens()}
-                      >
-                        <div className='text-button'>Swap</div>
-                      </button>
+                    <div className='swap-group-amount-gas margin-top-bottom-12px'>
+                      <Row justify='space-between'>
+                        <Col span={11}>
+                          <div className='swap-input-gas-price'>
+                            <div className='boder-input'>
+                              <div className='label-input'>
+                                <div className='content-label'>
+                                  <div className='text-label'>Gas Price</div>
+                                </div>
+                              </div>
+                              <div className='token-input'>
+                                <input
+                                  className='input-token'
+                                  type='text'
+                                  value={gasPrice}
+                                  onChange={e => changeGasPrice(e)}
+                                ></input>
+                              </div>
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={11}>
+                          <div className='swap-input-slippage'>
+                            <div className='boder-input'>
+                              <div className='label-input'>
+                                <div className='content-label'>
+                                  <div className='text-label'>Slippage Tolerance</div>
+                                </div>
+                              </div>
+                              <div className='token-input'>
+                                <Input
+                                  className='input-token'
+                                  bordered={false}
+                                  size='small'
+                                  onChange={e => changeSlippage(e)}
+                                  onBlur={() => calcTrade()}
+                                  onPressEnter={() => calcTrade()}
+                                  placeholder={slippage}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </Col>
+                      </Row>
                     </div>
+                    <div className='swap-input-token margin-top-bottom-12px'>
+                      <div className='boder-input'>
+                        <div className='label-input'>
+                          <div className='content-label'>
+                            <div className='text-label'>Amount Out Require</div>
+                            <div
+                              className='display-balance'
+                              onClick={() => setAmountOutRequired(amountOutMin)}
+                            >
+                              Amount min:
+                              {loadingSlippage ? (
+                                <span>
+                                  &nbsp; &nbsp;
+                                  <Spin indicator={antIcon} />
+                                </span>
+                              ) : (
+                                amountOutMin
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className='token-input'>
+                          <Input
+                            min={0.1}
+                            step={0.1}
+                            bordered={false}
+                            className='input-token'
+                            type='text'
+                            value={amountOutRequired}
+                            onChange={e => {
+                              changeAmountOutRequired(e);
+                            }}
+                          ></Input>
+                        </div>
+                      </div>
+                    </div>
+                    <div className='display-fee margin-top-bottom-12px'>
+                      <div className='box-slippage'>
+                        <div className='box-fee'>
+                          <span>
+                            Fee: <b>{calcFee(gasLimit, gasPrice)}</b>
+                            <i>(Ether)</i> -{' '}
+                            <b>{parseFloat(calcFee(gasLimit, gasPrice) * priceETH).toFixed(3)}</b>
+                            ($)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className='button-start-swap'>
+                    <button
+                      className='button-swap'
+                      disabled={
+                        addressToken0 &&
+                        addressToken1 &&
+                        ethers.utils.isAddress(addressToken0) &&
+                        ethers.utils.isAddress(addressToken0) &&
+                        instancePair &&
+                        privateKey &&
+                        balanceETH > calcFee(gasLimit, gasPrice)
+                          ? false
+                          : true
+                      }
+                      onClick={() => swapExactETHForTokens()}
+                    >
+                      <div className='text-button'>Swap</div>
+                    </button>
                   </div>
                 </div>
               </div>
-            </Col>
+            </div>
+          </Col>
 
-            <Col xs={{ order: 1, span: 24 }} xl={{ order: 3, span: 9 }}>
-              <RightSwap
-                setGasPrice={setGasPrice}
-                transactions={transactions}
-                statusTracking={statusTracking}
-                statusAutoSwap={statusAutoSwap}
-                setStatusAutoSwap={setStatusAutoSwap}
-                startTracking={startTracking}
-                addressToken0={addressToken0}
-                addressToken1={addressToken1}
-                pair={pair}
-                liquidity0={liquidity0}
-                liquidity1={liquidity1}
-                amount={amount}
-                symbol0={symbol0}
-                symbol1={symbol1}
-                setAmountOutRequired={setAmountOutRequired}
-              />
-            </Col>
-          </Row>
-        </div>
+          <Col xs={{ order: 1, span: 24 }} xl={{ order: 3, span: 9 }}>
+            <RightSwap
+              setGasPrice={setGasPrice}
+              transactions={transactions}
+              statusTracking={statusTracking}
+              statusAutoSwap={statusAutoSwap}
+              setStatusAutoSwap={setStatusAutoSwap}
+              startTracking={startTracking}
+              addressToken0={addressToken0}
+              addressToken1={addressToken1}
+              pair={pair}
+              liquidity0={liquidity0}
+              liquidity1={liquidity1}
+              amount={amount}
+              symbol0={symbol0}
+              symbol1={symbol1}
+              setAmountOutRequired={setAmountOutRequired}
+              disabledSwapAuto={disabledSwapAuto}
+            />
+          </Col>
+        </Row>
       </div>
-    </Spin>
+    </div>
   );
 }
 
