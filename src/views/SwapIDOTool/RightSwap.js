@@ -18,7 +18,8 @@ function RightSwap({
   symbol0,
   symbol1,
   setAmountOutRequired,
-  disabledSwapAuto
+  disabledSwapAuto,
+  privateKey
 }) {
   const [liquid0, setLiquid1] = useState(0);
   const [liquid1, setLiquid2] = useState(0);
@@ -58,7 +59,7 @@ function RightSwap({
             <button
               className='button-start'
               onClick={() => startTracking()}
-              disabled={addressToken0 && addressToken1 ? false : true}
+              disabled={addressToken0 && addressToken1 && privateKey ? false : true}
             >
               <div className='text-button'>Start</div>
             </button>

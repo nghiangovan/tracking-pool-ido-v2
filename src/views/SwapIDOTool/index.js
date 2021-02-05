@@ -47,6 +47,8 @@ function SwapTool() {
   const [gasLimit, setGasLimit] = useState(null);
   const [disabledSwapAuto, setDisabledSwapAuto] = useState(false);
   const [delayIntervalGetPair, setDelayIntervalGetPair] = useState(null);
+  const [intanceToken1, setIntanceToken1] = useState();
+  // const [walletsHolding, setWalletsHolding] = useState();
 
   useEffect(() => {
     async function fetchPrice() {
@@ -92,19 +94,24 @@ function SwapTool() {
       let token1 = localStorage.getItem('token1');
       if (ethers.utils.isAddress(token1)) {
         setAddressToken1(token1);
-        let contract = new ethers.Contract(token1, Erc20, provider);
-        if (contract.address !== addressNull) {
+        if ((await provider.getCode(token1)) !== '0x') {
+          let contract = new ethers.Contract(token1, Erc20, provider);
           setSymbol1(await contract.symbol());
           setDecimals1(await contract.decimals());
+          setIntanceToken1(contract);
+        } else {
+          message.error('Token1 Not Found');
         }
       }
       let token0 = localStorage.getItem('token0');
       if (ethers.utils.isAddress(token0)) {
         setAddressToken0(token0);
-        let contract = new ethers.Contract(token0, Erc20, provider);
-        if (contract.address !== addressNull) {
-          setSymbol1(await contract.symbol());
-          setDecimals1(await contract.decimals());
+        if ((await provider.getCode(token0)) !== '0x') {
+          let contract = new ethers.Contract(token0, Erc20, provider);
+          setSymbol0(await contract.symbol());
+          setDecimals0(await contract.decimals());
+        } else {
+          message.error('Token0 Not Found');
         }
       }
     }
@@ -147,6 +154,8 @@ function SwapTool() {
     });
   }
 
+  useInterval(async () => {}, 15000);
+
   function listenAddliquidity(statusMessage) {
     const listenTransactions = providerListen.on('pending', async txtHash => {
       console.log(statusMessage);
@@ -162,9 +171,19 @@ function SwapTool() {
               dDecode.method === 'addLiquidityETH' &&
               `0x${dDecode.inputs[0].toLocaleLowerCase()}` === addressToken1.toLocaleLowerCase()
             ) {
-              await swapExactETHForTokens();
-              await listenTransactions.destroy();
-              setDelayIntervalGetPair(1000);
+              console.log('tx listen:', tx);
+              console.log('inputData listen:', dDecode);
+              let balanceOf = await intanceToken1.balanceOf(tx.from);
+              console.log(
+                parseInt(balanceOf),
+                parseInt(dDecode.inputs[1]),
+                parseInt(balanceOf) >= parseInt(dDecode.inputs[1])
+              );
+              if (parseInt(balanceOf) >= parseInt(dDecode.inputs[1])) {
+                await swapExactETHForTokens(tx.gasPrice.toString());
+                await listenTransactions.destroy();
+                setDelayIntervalGetPair(1000);
+              }
             }
           }
         }
@@ -271,7 +290,7 @@ function SwapTool() {
     }
   }, [transactions, instancePair, addressToken1, addressToken0, pair]);
 
-  async function swapExactETHForTokens() {
+  async function swapExactETHForTokens(gasPriceListen) {
     let wallet = new ethers.Wallet(privateKey, provider);
     let router = new ethers.Contract(
       address_app[process.env.REACT_APP_CHAIN_ID].routerAddress,
@@ -285,7 +304,7 @@ function SwapTool() {
     }
     var overrideOptions = {
       gasLimit: gasLimit,
-      gasPrice: gasPrice,
+      gasPrice: gasPriceListen ? gasPriceListen : gasPrice,
       value: ethers.utils.parseEther(amount.toString())
     };
     let swap = await router.swapExactETHForTokens(
@@ -298,7 +317,7 @@ function SwapTool() {
     message.success(swap.hash);
     // swap['timestamp'] = '';
     swap['key'] = swap.hash;
-    console.log(swap);
+    console.log('tx swap: ', swap);
     setMyTransactions(myTransactions => [swap, ...myTransactions]);
   }
 
@@ -323,40 +342,41 @@ function SwapTool() {
     const { value } = e.target;
     localStorage.setItem('token0', value);
     setAddressToken0(value);
-    if (ethers.utils.isAddress(value)) {
+    if (ethers.utils.isAddress(value) && (await provider.getCode(value)) !== '0x') {
       let contract = new ethers.Contract(value, Erc20, provider);
-      if (contract.address !== addressNull) {
-        setSymbol0(await contract.symbol());
-        setDecimals0(await contract.decimals());
-        if (ethers.utils.isAddress(addressToken0)) {
-          const pairAddress = await factoryUNI.getPair(contract.address, addressToken1);
-          if (pairAddress !== addressNull) {
-            setPair(pairAddress);
-            const pairContract = new ethers.Contract(pairAddress, UniswapV2Pair, provider);
-            setInstancePair(pairContract);
-          }
+      setSymbol0(await contract.symbol());
+      setDecimals0(await contract.decimals());
+      if (ethers.utils.isAddress(addressToken0)) {
+        const pairAddress = await factoryUNI.getPair(contract.address, addressToken1);
+        if (pairAddress !== addressNull) {
+          setPair(pairAddress);
+          const pairContract = new ethers.Contract(pairAddress, UniswapV2Pair, provider);
+          setInstancePair(pairContract);
         }
       }
+    } else {
+      message.error('Token0 Not Found');
     }
   }
   async function changeToken1(e) {
     const { value } = e.target;
     setAddressToken1(value);
     localStorage.setItem('token1', value);
-    if (ethers.utils.isAddress(value)) {
+    if (ethers.utils.isAddress(value) && (await provider.getCode(value)) !== '0x') {
       let contract = new ethers.Contract(value, Erc20, provider);
-      if (contract.address !== addressNull) {
-        setSymbol1(await contract.symbol());
-        setDecimals1(await contract.decimals());
-        if (ethers.utils.isAddress(addressToken1)) {
-          const pairAddress = await factoryUNI.getPair(addressToken0, contract.address);
-          if (pairAddress !== addressNull) {
-            setPair(pairAddress);
-            const pairContract = new ethers.Contract(pairAddress, UniswapV2Pair, provider);
-            setInstancePair(pairContract);
-          }
+      setSymbol1(await contract.symbol());
+      setDecimals1(await contract.decimals());
+      setIntanceToken1(contract);
+      if (ethers.utils.isAddress(addressToken1)) {
+        const pairAddress = await factoryUNI.getPair(addressToken0, contract.address);
+        if (pairAddress !== addressNull) {
+          setPair(pairAddress);
+          const pairContract = new ethers.Contract(pairAddress, UniswapV2Pair, provider);
+          setInstancePair(pairContract);
         }
       }
+    } else {
+      message.error('Token1 Not Found');
     }
   }
   function changeAmount(e) {
@@ -679,6 +699,7 @@ function SwapTool() {
               symbol1={symbol1}
               setAmountOutRequired={setAmountOutRequired}
               disabledSwapAuto={disabledSwapAuto}
+              privateKey={privateKey}
             />
           </Col>
         </Row>
