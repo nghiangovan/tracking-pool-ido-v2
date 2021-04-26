@@ -19,7 +19,8 @@ function RightSwap({
   symbol1,
   setAmountOutRequired,
   disabledSwapAuto,
-  privateKey
+  privateKey,
+  priceETH
 }) {
   const [liquid0, setLiquid1] = useState(0);
   const [liquid1, setLiquid2] = useState(0);
@@ -107,6 +108,7 @@ function RightSwap({
             </div>
           ) : null}
           <div className='status-tracking-pair'></div>
+          <h1>Price: {(liquidity0 / liquidity1) * priceETH}</h1>
         </Col>
       </Row>
 

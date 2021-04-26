@@ -700,6 +700,7 @@ function SwapTool() {
               setAmountOutRequired={setAmountOutRequired}
               disabledSwapAuto={disabledSwapAuto}
               privateKey={privateKey}
+              priceETH={priceETH}
             />
           </Col>
         </Row>
